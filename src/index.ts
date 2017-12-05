@@ -27,17 +27,52 @@ const photoFolder: string = myArgs[0];
 const storageFolder: string = myArgs[1];
 
 class BaseStats {
-  public photos: number = 0;
-  public with_exif: number = 0;
-  public without_exif: number = 0;
+  protected photos: number = 0;
+  protected with_exif: number = 0;
+  protected without_exif: number = 0;
+
+  public incrementBase(hasexif: boolean){
+    if(hasexif) this.with_exif++;
+    else this.without_exif++;
+    this.photos++;
+  }
+
+  protected static displayStatsStr(instance: BaseStats) : string {
+    return instance.photos + " (exif:" + instance.with_exif + " noexif:" + instance.without_exif + ")";
+  }
 }
 
 class GlobalStats extends BaseStats {
-  public byYear: { [year: number] : BaseStats; } = {};
+  private byYear: { [year: number] : BaseStats; } = {};
+
+  public increment(photoDate: Date, hasexif: boolean){
+    // Increment base
+    this.incrementBase(hasexif);
+    // Increment specific year
+    var year: number = photoDate.getFullYear();
+    if(typeof this.byYear[year] == 'undefined') {
+      this.byYear[year] = new BaseStats();
+    }
+    this.byYear[year].incrementBase(hasexif);
+  }
+
+  public displayStats(): void {
+    console.log("TOTAL: %s", BaseStats.displayStatsStr(this));
+    for (var year in this.byYear) {
+      // check if the property/key is defined in the object itself, not in parent
+      if (this.byYear.hasOwnProperty(year)) {
+        console.log(" - %s : %s ", year, BaseStats.displayStatsStr(this.byYear[year]));
+      }
+    }
+  }
 }
 
 class ImportStats extends GlobalStats {
   public duplicates: number = 0;
+  public displayStats(): void {
+    console.log("Duplicates photos: %s", this.duplicates);
+    super.displayStats();
+  }
 }
 
 class Metadata {
@@ -98,11 +133,7 @@ function copyFile(newFile: string,
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
        addGlobalStats(photoDate, "", storage, dateCanBeTrusted);
-       import_stats.photos++;
-       if(dateCanBeTrusted)
-         import_stats.with_exif++;
-       else
-         import_stats.without_exif++;
+       import_stats.increment(photoDate, dateCanBeTrusted);
 
        if(options.deleteOriginal) {
          mutexLocked ++;
@@ -190,23 +221,7 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
 }
 
 function addGlobalStats(photoDate: Date, file: string, storage: string, dateCanBeTrusted: boolean = true){
-
-  var year: number = photoDate.getFullYear();
-
-  if(typeof metadata.global_stats.byYear[year] == 'undefined') {
-    metadata.global_stats.byYear[year] = new BaseStats();
-  }
-
-  metadata.global_stats.photos++;
-  metadata.global_stats.byYear[year].photos++;
-
-  if(dateCanBeTrusted) {
-    metadata.global_stats.with_exif++;
-    metadata.global_stats.byYear[year].with_exif++;
-  } else {
-    metadata.global_stats.without_exif++;
-    metadata.global_stats.byYear[year].without_exif++;
-  }
+  metadata.global_stats.increment(photoDate, dateCanBeTrusted);
 }
 
 function addMd5IfNoExif(photoDate: Date, file: string, storage: string, dateCanBeTrusted: boolean = true){
@@ -236,7 +251,7 @@ function loadObjectFromFile(storage: string, fileName: string, dataObjName: stri
     var json_string: string = fs.readFileSync(metadataFile);
     console.log("Load metadata file %s", metadataFile);
     try {
-      metadata[dataObjName] = JSON.parse(json_string);
+      Object.assign(metadata[dataObjName], JSON.parse(json_string));
     } catch(e) {
       console.log("File is corrupted delete it and recreate: error=%s", e);
       fs.unlinkSync(metadataFile);
@@ -245,9 +260,6 @@ function loadObjectFromFile(storage: string, fileName: string, dataObjName: stri
   } catch(e) {
     console.log("%s metadata does not exist: recreate it by a scan", metadataFile);
     scanDir(storage, "", addMethod);
-    // This is a save to avoid rescan
-    mutexMetadata++;
-    saveMetadata(storage, fileName, dataObjName);
   }
 }
 
@@ -261,9 +273,10 @@ function loadWeakDateMd5(storage: string): void {
 
 function printImportStats(): void {
   if(mutexMetadata == 0){
-    console.log("Imported photos", import_stats.photos);
-    console.log("Duplicates photos", import_stats.duplicates);
-    console.log("New total number of photos", metadata["global_stats"].photos);
+    console.log("========= Imported results =========");
+    import_stats.displayStats();
+    console.log("========== Total Storage ==========");
+    metadata.global_stats.displayStats();
   } else {
     //console.log("mutexMetadata = %s wait 500ms", mutexMetadata);
     setTimeout(function () {printImportStats();}, 500);
