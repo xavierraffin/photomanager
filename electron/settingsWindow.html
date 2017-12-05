@@ -1,0 +1,32 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8">
+    <title>Settings</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/materialize/0.100.2/css/materialize.min.css">
+  </head>
+  <body>
+    <div class="container">
+    <form>
+      <div>
+        <label>Folder</label>
+        <input type="text" id="folder" autofocus>
+      </div>
+      <button class="btn waves-effect waves-light" type="submit">set folder</button>
+    </form>
+    </div>
+    <script>
+      const electron = require('electron');
+      const {ipcRenderer} = electron;
+
+      const form = document.querySelector('form');
+      form.addEventListener('submit', submitForm);
+
+      function submitForm(e){
+        e.preventDefault();
+        const folder = document.querySelector('#folder').value;
+        ipcRenderer.send('folder:set', folder);
+      }
+    </script>
+  </body>
+</html>
