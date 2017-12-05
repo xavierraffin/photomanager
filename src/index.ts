@@ -31,13 +31,15 @@ class BaseStats {
   protected with_exif: number = 0;
   protected without_exif: number = 0;
 
-  public incrementBase(hasexif: boolean){
-    if(hasexif) this.with_exif++;
-    else this.without_exif++;
-    this.photos++;
+  /*
+   * These two functions are static because of the JSON loading who do not reload base class methods
+   */
+  protected static increment(instance: BaseStats, hasexif: boolean){
+    if(hasexif) instance.with_exif++;
+    else instance.without_exif++;
+    instance.photos++;
   }
-
-  protected static displayStatsStr(instance: BaseStats) : string {
+  protected static displayStats(instance: BaseStats) : string {
     return instance.photos + " (exif:" + instance.with_exif + " noexif:" + instance.without_exif + ")";
   }
 }
@@ -47,21 +49,21 @@ class GlobalStats extends BaseStats {
 
   public increment(photoDate: Date, hasexif: boolean){
     // Increment base
-    this.incrementBase(hasexif);
+    BaseStats.increment(this, hasexif);
     // Increment specific year
     var year: number = photoDate.getFullYear();
     if(typeof this.byYear[year] == 'undefined') {
       this.byYear[year] = new BaseStats();
     }
-    this.byYear[year].incrementBase(hasexif);
+    BaseStats.increment(this.byYear[year], hasexif);
   }
 
   public displayStats(): void {
-    console.log("TOTAL: %s", BaseStats.displayStatsStr(this));
+    console.log("TOTAL: %s", BaseStats.displayStats(this));
     for (var year in this.byYear) {
       // check if the property/key is defined in the object itself, not in parent
       if (this.byYear.hasOwnProperty(year)) {
-        console.log(" - %s : %s ", year, BaseStats.displayStatsStr(this.byYear[year]));
+        console.log(" - %s : %s ", year, BaseStats.displayStats(this.byYear[year]));
       }
     }
   }
