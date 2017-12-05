@@ -1,13 +1,13 @@
 {
   "name": "nodefs",
-  "version": "1.0.0",
-  "description": "",
-  "main": "index.js",
+  "version": "0.0.1",
+  "description": "Photomanager helps you to sort photos",
   "scripts": {
-    "start": "node index.js"
+    "start": "npm run build && node index.js",
+    "build": "tsc"
   },
-  "author": "Xavier",
-  "license": "ISC",
+  "author": "Xavier Raffin",
+  "license": "GPLv3.0",
   "dependencies": {
     "exif": "^0.6.0",
     "md5": "^2.2.1",
