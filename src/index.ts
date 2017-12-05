@@ -23,8 +23,8 @@ const ExifImage = require('exif').ExifImage;
 const md5 = require('md5');
 
 const myArgs = process.argv.slice(2);
-const photoFolder = myArgs[0];
-const storageFolder = myArgs[1];
+const photoFolder: string = myArgs[0];
+const storageFolder: string = myArgs[1];
 
 class BaseStats {
   public photos: number = 0;
@@ -62,7 +62,7 @@ else
   console.log("deleteOriginal = false");
 
 function isPhoto(file: string) : boolean {
-  const extension = path.extname(file);
+  const extension: string = path.extname(file);
   if((path.extname(file) == ".jpg") || (extension == ".jpeg") || (extension == ".JPG") || (extension == ".JPEG"))
   {
     return true;
@@ -92,7 +92,7 @@ function copyFile(newFile: string,
                   originalMd5: string,
                   storage: string,
                   dateCanBeTrusted: boolean,
-                  photoDate: Date){
+                  photoDate: Date) : void {
   mutexLocked ++;
   fs.stat(newFile, function(err: any, stat: any) {
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
@@ -132,8 +132,8 @@ function copyFile(newFile: string,
   });
 }
 
-function createIfNotExist(dirPath: string){
-  var dirExist = false;
+function createIfNotExist(dirPath: string): void {
+  var dirExist: boolean = false;
   try {
     fs.mkdirSync(dirPath);
   } catch (err) {
@@ -146,7 +146,7 @@ function createIfNotExist(dirPath: string){
     console.log("Create directory %s ", dirPath);
 }
 
-function isNotAlreadyImported(md5: string, file: string){
+function isNotAlreadyImported(md5: string, file: string): boolean {
   if(typeof metadata["weakDateMd5"][md5] == 'undefined') {
     console.log("This is a new Md5 add weakDateMd5[%s]=%s", md5, file);
     metadata["weakDateMd5"][md5] = file;
@@ -157,7 +157,7 @@ function isNotAlreadyImported(md5: string, file: string){
   }
 }
 
-function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBeTrusted: boolean = true){
+function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBeTrusted: boolean = true): void {
   mutexLocked ++;
   fs.readFile(file, function(err: any, buf: string) {
      if(!err){
@@ -215,7 +215,7 @@ function addMd5IfNoExif(photoDate: Date, file: string, storage: string, dateCanB
   mutexLocked ++;
   fs.readFile(file, function(err: any, buf: string) {
     if(!err){
-      const photoMD5 = md5(buf);
+      const photoMD5: string = md5(buf);
       if(typeof metadata["weakDateMd5"][photoMD5] == 'undefined') {
         metadata["weakDateMd5"][photoMD5] = file;
         console.log("New scan result weakDateMd5[%s] = %s", photoMD5, metadata["weakDateMd5"][photoMD5]);
@@ -233,7 +233,7 @@ interface addCallback { (photoDate: Date, file: string, storage: string, dateCan
 function loadObjectFromFile(storage: string, fileName: string, dataObjName: string, addMethod: addCallback) {
   const metadataFile = path.join(storage, fileName);
   try {
-    var json_string = fs.readFileSync(metadataFile);
+    var json_string: string = fs.readFileSync(metadataFile);
     console.log("Load metadata file %s", metadataFile);
     try {
       metadata[dataObjName] = JSON.parse(json_string);
@@ -251,19 +251,15 @@ function loadObjectFromFile(storage: string, fileName: string, dataObjName: stri
   }
 }
 
-function loadGlobalstat(storage: string) {
-  metadata.global_stats.photos = 0;
-  metadata.global_stats.with_exif = 0;
-  metadata.global_stats.without_exif = 0;
-  metadata.global_stats.byYear = {};
+function loadGlobalstat(storage: string): void {
   loadObjectFromFile(storage, ".do-not-delete-stat.js", "global_stats", addGlobalStats);
 }
 
-function loadWeakDateMd5(storage: string) {
+function loadWeakDateMd5(storage: string): void {
   loadObjectFromFile(storage, ".do-not-delete-md5.js", "weakDateMd5", addMd5IfNoExif);
 }
 
-function printImportStats() {
+function printImportStats(): void {
   if(mutexMetadata == 0){
     console.log("Imported photos", import_stats.photos);
     console.log("Duplicates photos", import_stats.duplicates);
@@ -274,7 +270,7 @@ function printImportStats() {
   }
 }
 
-function saveMetadata(storage: string, fileName: string, dataObjName: string) {
+function saveMetadata(storage: string, fileName: string, dataObjName: string): void {
   if(mutexLocked == 0){
     const metadataFile: string = path.join(storage, fileName);
     var json_string: string = JSON.stringify(metadata[dataObjName]);
@@ -292,19 +288,19 @@ function saveMetadata(storage: string, fileName: string, dataObjName: string) {
   }
 }
 
-function saveGlobalstat(storage: string) {
+function saveGlobalstat(storage: string): void {
   mutexMetadata++;
   saveMetadata(storage, ".do-not-delete-stat.js", "global_stats");
 }
 
-function saveWeakDateMd5(storage: string) {
+function saveWeakDateMd5(storage: string): void {
   mutexMetadata++;
   saveMetadata(storage, ".do-not-delete-md5.js", "weakDateMd5");
 }
 
 interface operationCallback { (photoDate: Date, file: string, storage: string, dateCanBeTrusted?: boolean) : void };
 
-function scanDir(folder: string, storage: string, operationOnPhotoFiles: operationCallback) {
+function scanDir(folder: string, storage: string, operationOnPhotoFiles: operationCallback): void {
   mutexLocked ++;
   fs.readdir(folder, (err: any, files: string[]) => {
     if (err) {
@@ -324,10 +320,10 @@ function scanDir(folder: string, storage: string, operationOnPhotoFiles: operati
               new ExifImage({ image : file }, function (err: any, exifData: any) {
                 if(!err){
                    if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
-                     const photoDate = dateFromExif(exifData.exif.CreateDate);
+                     const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
                      operationOnPhotoFiles(photoDate, file, storage);
                    } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
-                     const photoDate = dateFromExif(exifData.image.ModifyDate);
+                     const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
                      operationOnPhotoFiles(photoDate, file, storage);
                    } else {
                      operationOnPhotoFiles(fileStat.ctime, file, storage, false);
