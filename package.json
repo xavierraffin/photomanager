@@ -3,7 +3,7 @@
   "version": "0.0.1",
   "description": "Photomanager helps you to sort photos",
   "scripts": {
-    "start": "npm run build && node index.js",
+    "start": "npm run build && node dist/index.js",
     "build": "tsc"
   },
   "author": "Xavier Raffin",
