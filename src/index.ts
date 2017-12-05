@@ -26,6 +26,13 @@ const myArgs = process.argv.slice(2);
 const photoFolder: string = myArgs[0];
 const storageFolder: string = myArgs[1];
 
+const options = { "deleteOriginal" : false }
+
+if (options.deleteOriginal)
+  console.log("Original files will be deleted after transfer.");
+else
+  console.log("Original files will stay in place.");
+
 class BaseStats {
   protected photos: number = 0;
   protected with_exif: number = 0;
@@ -91,13 +98,6 @@ var mutexMetadata: number = 0;
 
 var import_stats: ImportStats = new ImportStats();
 
-const options = { "deleteOriginal" : true }
-
-if (options.deleteOriginal)
-  console.log("deleteOriginal = true");
-else
-  console.log("deleteOriginal = false");
-
 function isPhoto(file: string) : boolean {
   const extension: string = path.extname(file);
   if((path.extname(file) == ".jpg") || (extension == ".jpeg") || (extension == ".JPG") || (extension == ".JPEG"))
@@ -131,17 +131,22 @@ function copyFile(newFile: string,
                   dateCanBeTrusted: boolean,
                   photoDate: Date) : void {
   mutexLocked ++;
+
+  createMissingDirIfNeeded(photoDate, storage);
   fs.stat(newFile, function(err: any, stat: any) {
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
        addGlobalStats(photoDate, "", storage, dateCanBeTrusted);
-       import_stats.increment(photoDate, dateCanBeTrusted);
 
        if(options.deleteOriginal) {
          mutexLocked ++;
          fs.rename(originalFile, newFile, function(err: any) {
-            if (err) console.log('ERROR renaming file: %s to %s: %s', originalFile, newFile, err);
-            else console.log('file: %s imported to %s ', originalFile, newFile);
+            if (err) {
+              console.log('ERROR renaming file: %s to %s: %s', originalFile, newFile, err);
+            } else {
+              console.log('file: %s imported to %s ', originalFile, newFile);
+              import_stats.increment(photoDate, dateCanBeTrusted);
+            }
             mutexLocked --;
          });
        } else { // keep original as is
@@ -149,6 +154,9 @@ function copyFile(newFile: string,
          fs.writeFile(newFile, buf , function(error: any){
            if(!error) {
               console.log("File %s copied from",newFile, originalFile);
+              import_stats.increment(photoDate, dateCanBeTrusted);
+           } else {
+              console.log("ERROR copying file %s to %s: %s", originalFile, newFile, error);
            }
            mutexLocked --;
          });
@@ -165,6 +173,17 @@ function copyFile(newFile: string,
   });
 }
 
+function createMissingDirIfNeeded(photoDate: Date, storage: string): void {
+  var photoPath: string;
+  var year: number = photoDate.getFullYear();
+  var month: number = photoDate.getMonth() + 1;
+
+  photoPath = path.join(storage, year.toString());
+  createIfNotExist(photoPath);
+  photoPath = path.join(photoPath, month.toString());
+  createIfNotExist(photoPath);
+}
+
 function createIfNotExist(dirPath: string): void {
   var dirExist: boolean = false;
   try {
@@ -179,15 +198,27 @@ function createIfNotExist(dirPath: string): void {
     console.log("Create directory %s ", dirPath);
 }
 
-function isNotAlreadyImported(md5: string, file: string): boolean {
+function isNotAlreadyImported(md5: string, file: string, newFile: string ): boolean {
   if(typeof metadata["weakDateMd5"][md5] == 'undefined') {
-    console.log("This is a new Md5 add weakDateMd5[%s]=%s", md5, file);
-    metadata["weakDateMd5"][md5] = file;
+    console.log("This is a new Md5 add weakDateMd5[%s]=%s", md5, newFile);
+    metadata["weakDateMd5"][md5] = newFile;
     return true;
   } else {
-    console.log("Duplicate Md5 %s from file %s", md5, file);
+    console.log("Duplicate Md5 %s between file %s and file %s", md5, file, newFile);
     return false;
   }
+}
+
+function fileNameInStorage(photoDate: Date, photoMD5: string, storage: string) {
+  var photoPath: string;
+  var year: number = photoDate.getFullYear();
+  var month: number = photoDate.getMonth() + 1;
+
+  photoPath = path.join(storage, year.toString());
+  photoPath = path.join(photoPath, month.toString());
+
+  const newFileName: string = formatDate(photoDate)+ "_" + photoMD5 + ".jpg";
+  return path.join(photoPath, newFileName);
 }
 
 function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBeTrusted: boolean = true): void {
@@ -196,19 +227,9 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
      if(!err){
        const photoMD5: string = md5(buf);
 
-       if (dateCanBeTrusted || isNotAlreadyImported(photoMD5, file)){
-         var photoPath: string;
+       var newFile = fileNameInStorage(photoDate, photoMD5, storage);
 
-         var year: number = photoDate.getFullYear();
-         photoPath = path.join(storage, year.toString());
-         createIfNotExist(photoPath);
-
-         var month: number = photoDate.getMonth() + 1;
-         photoPath = path.join(photoPath, month.toString());
-         createIfNotExist(photoPath);
-
-         const newFileName: string = formatDate(photoDate)+ "_" + photoMD5 + ".jpg";
-         var newFile: string = path.join(photoPath, newFileName);
+       if (dateCanBeTrusted || isNotAlreadyImported(photoMD5, file, newFile)){
          copyFile(newFile, buf, file, photoMD5, storage, dateCanBeTrusted, photoDate);
        } else {
          import_stats.duplicates++;
@@ -237,8 +258,10 @@ function addMd5IfNoExif(photoDate: Date, file: string, storage: string, dateCanB
         metadata["weakDateMd5"][photoMD5] = file;
         console.log("New scan result weakDateMd5[%s] = %s", photoMD5, metadata["weakDateMd5"][photoMD5]);
       } else {
-        console.log("Duplicate Md5 %s - remove %s in storage", photoMD5, file);
-        fs.unlinkSync(file);
+        if(options.deleteOriginal) {
+          console.log("Duplicate Md5 %s - remove %s in storage", photoMD5, file);
+          fs.unlinkSync(file);
+        }
       }
     }
     mutexLocked --;
