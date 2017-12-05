@@ -123,6 +123,18 @@ function formatDate(photoDate: Date) : string {
   return photoDate.toISOString().substring(0, 19);
 }
 
+var importedFiles: any = {};
+
+function isFileAlreadyImported(newFile: string) : boolean {
+  if(typeof importedFiles[newFile] == 'undefined') {
+    importedFiles[newFile] = true;
+    return false;
+  } else {
+    console.log('file: %s already created by current import', newFile);
+    return true;
+  }
+}
+
 function copyFile(newFile: string,
                   buf: string,
                   originalFile: string,
@@ -130,6 +142,13 @@ function copyFile(newFile: string,
                   storage: string,
                   dateCanBeTrusted: boolean,
                   photoDate: Date) : void {
+  /*
+   * We check if this file has already been imported in the current import operation (avoid IO race condition)
+   */
+  if(isFileAlreadyImported(newFile)) {
+    import_stats.duplicates++;
+    return;
+  }
   mutexLocked ++;
 
   createMissingDirIfNeeded(photoDate, storage);
