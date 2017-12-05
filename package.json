@@ -7,10 +7,17 @@
     "build": "tsc"
   },
   "author": "Xavier Raffin",
-  "license": "GPLv3.0",
+  "license": "GPL-3.0",
+  "repository": {
+    "type": "git",
+    "url": "git://github.com/xavierraffin/photomanager.git"
+  },
   "dependencies": {
     "exif": "^0.6.0",
     "md5": "^2.2.1",
     "typescript": "^2.6.2"
+  },
+  "devDependencies": {
+    "@types/node": "^8.0.54"
   }
 }
