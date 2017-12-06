@@ -31,7 +31,7 @@ const options = { "deleteOriginal" : false,
                     "fileSizeInBytes" : "15000",
                     "minExifImageHeight" : "300",
                     "minExifImageWidth" : "300",
-                    "hasExifDate" : true,
+                    "hasExifDate" : false,
                   }
                 }
 
