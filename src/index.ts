@@ -23,10 +23,17 @@ const ExifImage = require('exif').ExifImage;
 const md5 = require('md5');
 
 const myArgs = process.argv.slice(2);
-const photoFolder: string = myArgs[0];
+const importedFolder: string = myArgs[0];
 const storageFolder: string = myArgs[1];
 
-const options = { "deleteOriginal" : false }
+const options = { "deleteOriginal" : false,
+                  "photoAcceptanceCriteria" : {
+                    "fileSizeInBytes" : "15000",
+                    "minExifImageHeight" : "300",
+                    "minExifImageWidth" : "300",
+                    "hasExifDate" : true,
+                  }
+                }
 
 if (options.deleteOriginal)
   console.log("Original files will be deleted after transfer.");
@@ -303,7 +310,7 @@ function loadObjectFromFile(storage: string, fileName: string, dataObjName: stri
     }
   } catch(e) {
     console.log("%s metadata does not exist: recreate it by a scan", metadataFile);
-    scanDir(storage, "", addMethod);
+    scanDir(storage, "", addMethod, true);
   }
 }
 
@@ -357,7 +364,7 @@ function saveWeakDateMd5(storage: string): void {
 
 interface operationCallback { (photoDate: Date, file: string, storage: string, dateCanBeTrusted?: boolean) : void };
 
-function scanDir(folder: string, storage: string, operationOnPhotoFiles: operationCallback): void {
+function scanDir(folder: string, storage: string, operationOnPhotoFiles: operationCallback, isStatScan: boolean): void {
   mutexLocked ++;
   fs.readdir(folder, (err: any, files: string[]) => {
     if (err) {
@@ -374,8 +381,25 @@ function scanDir(folder: string, storage: string, operationOnPhotoFiles: operati
          if(!err){
          if(fileStat.isFile()){
            if(isPhoto(file)){
+              if(!isStatScan && (fileStat["size"] < options.photoAcceptanceCriteria.fileSizeInBytes)) {
+                console.log("%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
+                return;
+              }
               new ExifImage({ image : file }, function (err: any, exifData: any) {
                 if(!err){
+                   //console.log("------------------------------------ %s", file);
+                   //console.log(exifData);
+                   if(("exif" in exifData) && ("ExifImageWidth" in exifData.exif) && ("ExifImageHeight" in exifData.exif)){
+                     if (!isStatScan &&
+                            ((options.photoAcceptanceCriteria.minExifImageWidth > exifData.exif.ExifImageWidth) ||
+                             (options.photoAcceptanceCriteria.minExifImageHeight > exifData.exif.ExifImageHeight))) {
+                           console.log("file %s is smaller than %s x %s : EXCLUDE PHOTO",
+                                        file,
+                                        options.photoAcceptanceCriteria.minExifImageWidth,
+                                        options.photoAcceptanceCriteria.minExifImageHeight);
+                           return;
+                         }
+                   }
                    if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
                      const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
                      operationOnPhotoFiles(photoDate, file, storage);
@@ -383,16 +407,24 @@ function scanDir(folder: string, storage: string, operationOnPhotoFiles: operati
                      const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
                      operationOnPhotoFiles(photoDate, file, storage);
                    } else {
-                     operationOnPhotoFiles(fileStat.ctime, file, storage, false);
+                     if(isStatScan || !options.photoAcceptanceCriteria.hasExifDate) {
+                       operationOnPhotoFiles(fileStat.ctime, file, storage, false);
+                     } else {
+                       console.log("file %s has no EXIF date : EXCLUDE PHOTO", file);
+                     }
                    }
                 } else {
-                  operationOnPhotoFiles(fileStat.ctime, file, storage, false);
+                  if(isStatScan || !options.photoAcceptanceCriteria.hasExifDate) {
+                    operationOnPhotoFiles(fileStat.ctime, file, storage, false);
+                  } else {
+                    console.log("file %s has no EXIF data : EXCLUDE PHOTO", file);
+                  }
                 }
               });
            }
          } else if(fileStat.isDirectory()) {
               if(!fileStat.isSymbolicLink())
-                scanDir(file, storage, operationOnPhotoFiles);
+                scanDir(file, storage, operationOnPhotoFiles, isStatScan);
          }
        }
        });
@@ -403,11 +435,15 @@ function scanDir(folder: string, storage: string, operationOnPhotoFiles: operati
 }
 
 loadGlobalstat(storageFolder);
-loadWeakDateMd5(storageFolder);
+if(!options.photoAcceptanceCriteria.hasExifDate) {
+  loadWeakDateMd5(storageFolder);
+}
 
-scanDir(photoFolder, storageFolder, moveInStorage);
+scanDir(importedFolder, storageFolder, moveInStorage, false);
 
-saveWeakDateMd5(storageFolder);
+if(!options.photoAcceptanceCriteria.hasExifDate) {
+  saveWeakDateMd5(storageFolder);
+}
 saveGlobalstat(storageFolder);
 
 printImportStats();
