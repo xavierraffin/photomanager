@@ -1,10 +1,9 @@
 export let sizeIsOverLimits = (buffer: Buffer, minWidth: number, minHeight: number) : boolean => {
   try {
     var result: any = calculate(buffer);
-    console.log("file size = %s x %s", result.width, result.height);
     return ((result.width > minWidth) && (result.height > minHeight));
   } catch (e) {
-    console.log("file size can't be read: %s", e);
+    console.log("ERROR file size can't be read: %s", e);
     return false;
   }
 }

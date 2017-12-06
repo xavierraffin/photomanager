@@ -29,6 +29,10 @@ const importedFolder: string = myArgs[0];
 const storageFolder: string = myArgs[1];
 
 const options = { "deleteOriginal" : false,
+                  "tags" : {
+                    "createFromDirName" : true,
+                    "numberOfDirDepth" : 2
+                  },
                   "photoAcceptanceCriteria" : {
                     "fileSizeInBytes" : "15000",
                     "minExifImageHeight" : "300",
@@ -142,7 +146,7 @@ function isFileAlreadyImported(newFile: string) : boolean {
     importedFiles[newFile] = true;
     return false;
   } else {
-    console.log('file: %s already created by current import', newFile);
+    //console.log('file: %s already created by current import', newFile);
     return true;
   }
 }
@@ -161,9 +165,9 @@ function copyFile(newFile: string,
     import_stats.duplicates++;
     return;
   }
-  mutexLocked ++;
-
   createMissingDirIfNeeded(photoDate, storage);
+
+  mutexLocked ++;
   fs.stat(newFile, function(err: any, stat: any) {
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
@@ -230,6 +234,9 @@ function createIfNotExist(dirPath: string): void {
 }
 
 function isNotAlreadyImported(md5: string, file: string, newFile: string ): boolean {
+  if(options.photoAcceptanceCriteria.hasExifDate) {
+    return false;
+  }
   if(typeof metadata["weakDateMd5"][md5] == 'undefined') {
     console.log("This is a new Md5 add weakDateMd5[%s]=%s", md5, newFile);
     metadata["weakDateMd5"][md5] = newFile;
@@ -335,9 +342,59 @@ function loadObjectFromFile(storage: string, fileName: string, dataObjName: stri
   return false;
 }
 
+function scanTagDir(folder: string): void {
+  mutexLocked ++;
+  fs.readdir(folder, (err: any, files: string[]) => {
+    if (err) {
+      console.log("Unable to read TAG directory " + folder);
+      mutexLocked --;
+      return;
+    }
+
+    files.map(function (file) {
+      return path.join(folder, file);
+    }).forEach(file => {
+      mutexLocked ++;
+      fs.readFile(file, function(err: any, buf: string) {
+         if(err){
+           console.log("Unable to read TAG file " + file);
+           mutexLocked --;
+           return;
+         }
+         //TODO: LOAD TAGS
+         mutexLocked --;
+       });
+    });
+    mutexLocked --;
+  });
+}
+
+function loadTags(storage: string, tagfolder: string): void {
+  if(options.tags.createFromDirName) {
+    const tagfolderPath: string = path.join(storage, tagfolder);
+    fs.exists(tagfolderPath, function (exists: boolean) {
+      if(!exists){
+        console.log("Create tag folder %s", tagfolderPath);
+        try {
+          fs.mkdirSync(tagfolderPath);
+        } catch (err) {
+          console.log("Cannot create folder %s: ERROR %s", tagfolderPath, err);
+          throw err;
+        }
+      } else {
+        scanTagDir(tagfolderPath);
+      }
+    });
+  }
+}
+
 function loadMetadata(storage: string): void {
+  loadTags(storage, "TAGS");
   var needRescanStats: boolean = loadObjectFromFile(storage, ".do-not-delete-stat.js", "global_stats");
-  var needRescanMd5: boolean = loadObjectFromFile(storage, ".do-not-delete-md5.js", "weakDateMd5");
+  var needRescanMd5: boolean = false;
+  if(!options.photoAcceptanceCriteria.hasExifDate) {
+    needRescanMd5 = loadObjectFromFile(storage, ".do-not-delete-md5.js", "weakDateMd5");
+  }
   if (needRescanStats || needRescanMd5) {
     console.log("Missing metadata recreate them by a scan");
     scanStorageDir(storage, needRescanStats, needRescanMd5);
@@ -377,8 +434,10 @@ function saveMetadataFile(storage: string, fileName: string, dataObjName: string
 function saveMetadata(storage: string): void {
   mutexMetadata++;
   saveMetadataFile(storage, ".do-not-delete-stat.js", "global_stats");
-  mutexMetadata++;
-  saveMetadataFile(storage, ".do-not-delete-md5.js", "weakDateMd5");
+  if(!options.photoAcceptanceCriteria.hasExifDate) {
+    mutexMetadata++;
+    saveMetadataFile(storage, ".do-not-delete-md5.js", "weakDateMd5");
+  }
 }
 
 function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5: boolean): void {
@@ -394,37 +453,41 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
        return path.join(folder, file);
     }).forEach(file => {
        try{
+         mutexLocked ++;
          fs.lstat(file, (err: any, fileStat: any) => {
-         if(!err){
-         if(fileStat.isFile()){
-           if(isPhoto(file)){
-              new ExifImage({ image : file }, function (err: any, exifData: any) {
-                if(!err){
-                   if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
-                     if(needRescanStats) {
-                       const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
-                       addGlobalStats(photoDate, true);
+         if(!err) {
+           if(fileStat.isFile()){
+             if(isPhoto(file)){
+                mutexLocked ++;
+                new ExifImage({ image : file }, function (err: any, exifData: any) {
+                  if(!err){
+                     if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
+                       if(needRescanStats) {
+                         const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
+                         addGlobalStats(photoDate, true);
+                       }
+                     } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
+                       if(needRescanStats) {
+                         const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
+                         addGlobalStats(photoDate, true);
+                       }
+                     } else {
+                       if(needRescanStats) addGlobalStats(fileStat.ctime, false);
+                       if(needRescanMd5) storeMd5(file);
                      }
-                   } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
-                     if(needRescanStats) {
-                       const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
-                       addGlobalStats(photoDate, true);
-                     }
-                   } else {
-                     if(needRescanStats) addGlobalStats(fileStat.ctime, false);
-                     if(needRescanMd5) storeMd5(file);
-                   }
-                } else {
-                  if(needRescanStats) addGlobalStats(fileStat.ctime, false);
-                  if(needRescanMd5) storeMd5(file);
-                }
-              });
+                  } else {
+                    if(needRescanStats) addGlobalStats(fileStat.ctime, false);
+                    if(needRescanMd5) storeMd5(file);
+                  }
+                  mutexLocked --;
+                });
+             }
+           } else if(fileStat.isDirectory()) {
+                if(!fileStat.isSymbolicLink())
+                  scanStorageDir(file, needRescanStats, needRescanMd5);
            }
-         } else if(fileStat.isDirectory()) {
-              if(!fileStat.isSymbolicLink())
-                scanStorageDir(file, needRescanStats, needRescanMd5);
          }
-       }
+         mutexLocked --;
        });
        } catch(e){}
     });
@@ -444,7 +507,8 @@ function scanDir(folder: string, storage: string): void {
     files.map(function (file) {
        return path.join(folder, file);
     }).forEach(file => {
-         try{
+       try{
+          mutexLocked ++;
           fs.lstat(file, function (err: any, fileStat: any) {
             if(!err){
               if(fileStat.isFile()){
@@ -452,8 +516,10 @@ function scanDir(folder: string, storage: string): void {
                 var imageSize: number = fileStat["size"];
                 if(imageSize < Number(options.photoAcceptanceCriteria.fileSizeInBytes)) {
                   console.log("%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
+                  mutexLocked --;
                   return;
                 }
+                mutexLocked ++;
                 new ExifImage({ image : file }, function (err: any, exifData: any) {
                   var imageSizeWasntChecked: boolean = true;
                   if(!err) {
@@ -466,14 +532,17 @@ function scanDir(folder: string, storage: string): void {
                                       file,
                                       options.photoAcceptanceCriteria.minExifImageWidth,
                                       options.photoAcceptanceCriteria.minExifImageHeight);
+                         mutexLocked --;
                          return;
                        } else {
                          imageSizeWasntChecked = false;
                        }
                      }
+                     mutexLocked ++;
                      fs.open(file, 'r', function (err: any, descriptor: number) {
                        if (err) {
                          console.log("Cannot open file %s : %s", file , err);
+                         mutexLocked --;
                          return;
                        }
                        if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
@@ -490,20 +559,25 @@ function scanDir(folder: string, storage: string): void {
                            fs.close(descriptor, function (err: any) {});
                          }
                        }
+                       mutexLocked --;
                    });
                   } else {
                     if(!options.photoAcceptanceCriteria.hasExifDate) {
+                      mutexLocked ++;
                       fs.open(file, 'r', function (err: any, descriptor: number) {
                         if (err) {
                           console.log("Cannot open file %s : %s", file , err);
+                          mutexLocked --;
                           return;
                         }
                         moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
+                        mutexLocked --;
                       });
                     } else {
                       console.log("file %s has no EXIF data : EXCLUDE PHOTO", file);;
                     }
                   }
+                  mutexLocked --;
                 });
               }
               } else if(fileStat.isDirectory()) {
@@ -511,7 +585,7 @@ function scanDir(folder: string, storage: string): void {
                   scanDir(file, storage);
               }
             }
-
+            mutexLocked --;
           });
         } catch(e){}
       });
