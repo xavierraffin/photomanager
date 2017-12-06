@@ -14,6 +14,7 @@
   },
   "dependencies": {
     "exif": "^0.6.0",
+    "graceful-fs": "^4.1.11",
     "md5": "^2.2.1",
     "typescript": "^2.6.2"
   },

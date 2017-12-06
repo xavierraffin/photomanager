@@ -17,7 +17,7 @@
     Xavier Raffin - 2017
  */
 
-const fs = require('fs');
+var fs = require('graceful-fs');
 const path = require('path');
 const ExifImage = require('exif').ExifImage;
 const md5 = require('md5');
@@ -148,7 +148,7 @@ function isFileAlreadyImported(newFile: string) : boolean {
 }
 
 function copyFile(newFile: string,
-                  buf: string,
+                  buffer: Buffer,
                   originalFile: string,
                   originalMd5: string,
                   storage: string,
@@ -182,7 +182,7 @@ function copyFile(newFile: string,
          });
        } else { // keep original as is
          mutexLocked ++;
-         fs.writeFile(newFile, buf , function(error: any){
+         fs.writeFile(newFile, buffer, "binary", function(error: any){
            if(!error) {
               console.log("File %s copied from",newFile, originalFile);
               import_stats.increment(photoDate, dateCanBeTrusted);
@@ -258,9 +258,10 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
   var bufferSize = Math.min(fileSize, MaxBufferSize);
   var buffer = new Buffer(bufferSize);
 
-  fs.read(descriptor, buffer, 0, bufferSize, 0, function(err: any, bytesRead: string, buffer: Buffer) {
+  fs.read(descriptor, buffer, 0, bufferSize, 0, function(err: any, fileBytesSize: string, buffer: Buffer) {
+     fs.close(descriptor, function (err: any) {});
      if(!err){
-       const photoMD5: string = md5(bytesRead);
+       const photoMD5: string = md5(buffer);
 
        var newFile = fileNameInStorage(photoDate, photoMD5, storage);
 
@@ -274,13 +275,12 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
            buffer = null;
            console.log("file %s is to small", file);
            // File is not taking account into our statistics because it is not a valid photo
-           fs.close(descriptor, function (err: any) {});
            return;
          }
        }
 
        if (dateCanBeTrusted || isNotAlreadyImported(photoMD5, file, newFile)){
-         copyFile(newFile, bytesRead, file, photoMD5, storage, dateCanBeTrusted, photoDate);
+         copyFile(newFile, buffer, file, photoMD5, storage, dateCanBeTrusted, photoDate);
        } else {
          import_stats.duplicates++;
          if(options.deleteOriginal) {
@@ -289,7 +289,6 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
          }
        }
      }
-     fs.close(descriptor, function (err: any) {});
      mutexLocked --;
      buffer = null;
   });
@@ -446,72 +445,73 @@ function scanDir(folder: string, storage: string): void {
        return path.join(folder, file);
     }).forEach(file => {
          try{
-           fs.open(file, 'r', function (err: any, descriptor: number) {
-             if (err) {
-               console.log("Cannot open file %s : %s", file , err);
-               return;
-             }
-             fs.fstat(descriptor, function (err: any, fileStat: any) {
-               if(!err){
-                 if(fileStat.isFile()){
-                   if(isPhoto(file)){
-                      var imageSize: number = fileStat["size"];
-                      if(imageSize < Number(options.photoAcceptanceCriteria.fileSizeInBytes)) {
-                        console.log("%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
-                        fs.close(descriptor, function (err: any) {});
-                        return;
-                      }
-                      new ExifImage({ image : file }, function (err: any, exifData: any) {
-                        var imageSizeWasntChecked: boolean = true;
-                        if(!err){
-                           //console.log("------------------------------------ %s", file);
-                           //console.log(exifData);
-                           if(("exif" in exifData) && ("ExifImageWidth" in exifData.exif) && ("ExifImageHeight" in exifData.exif)){
-                             if ((options.photoAcceptanceCriteria.minExifImageWidth > exifData.exif.ExifImageWidth)
-                                 || (options.photoAcceptanceCriteria.minExifImageHeight > exifData.exif.ExifImageHeight)) {
-                               console.log("file %s is smaller than %s x %s : EXCLUDE PHOTO",
-                                            file,
-                                            options.photoAcceptanceCriteria.minExifImageWidth,
-                                            options.photoAcceptanceCriteria.minExifImageHeight);
-                               fs.close(descriptor, function (err: any) {});
-                               return;
-                             } else {
-                               imageSizeWasntChecked = false;
-                             }
-                           }
-                           if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
-                             const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
-                             moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor);
-                           } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
-                             const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
-                             moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor);
-                           } else {
-                             if(!options.photoAcceptanceCriteria.hasExifDate) {
-                               moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
-                             } else {
-                               console.log("file %s has no EXIF date : EXCLUDE PHOTO", file);
-                               fs.close(descriptor, function (err: any) {});
-                             }
-                           }
-                        } else {
-                          if(!options.photoAcceptanceCriteria.hasExifDate) {
-                            moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
-                          } else {
-                            console.log("file %s has no EXIF data : EXCLUDE PHOTO", file);
-                            fs.close(descriptor, function (err: any) {});
-                          }
+          fs.lstat(file, function (err: any, fileStat: any) {
+            if(!err){
+              if(fileStat.isFile()){
+                if(isPhoto(file)){
+                var imageSize: number = fileStat["size"];
+                if(imageSize < Number(options.photoAcceptanceCriteria.fileSizeInBytes)) {
+                  console.log("%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
+                  return;
+                }
+                new ExifImage({ image : file }, function (err: any, exifData: any) {
+                  var imageSizeWasntChecked: boolean = true;
+                  if(!err) {
+                     //console.log("------------------------------------ %s", file);
+                     //console.log(exifData);
+                     if(("exif" in exifData) && ("ExifImageWidth" in exifData.exif) && ("ExifImageHeight" in exifData.exif)){
+                       if ((options.photoAcceptanceCriteria.minExifImageWidth > exifData.exif.ExifImageWidth)
+                           || (options.photoAcceptanceCriteria.minExifImageHeight > exifData.exif.ExifImageHeight)) {
+                         console.log("file %s is smaller than %s x %s : EXCLUDE PHOTO",
+                                      file,
+                                      options.photoAcceptanceCriteria.minExifImageWidth,
+                                      options.photoAcceptanceCriteria.minExifImageHeight);
+                         return;
+                       } else {
+                         imageSizeWasntChecked = false;
+                       }
+                     }
+                     fs.open(file, 'r', function (err: any, descriptor: number) {
+                       if (err) {
+                         console.log("Cannot open file %s : %s", file , err);
+                         return;
+                       }
+                       if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
+                         const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
+                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor);
+                       } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
+                         const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
+                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor);
+                       } else {
+                         if(!options.photoAcceptanceCriteria.hasExifDate) {
+                           moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
+                         } else {
+                           console.log("file %s has no EXIF date : EXCLUDE PHOTO", file);
+                           fs.close(descriptor, function (err: any) {});
+                         }
+                       }
+                   });
+                  } else {
+                    if(!options.photoAcceptanceCriteria.hasExifDate) {
+                      fs.open(file, 'r', function (err: any, descriptor: number) {
+                        if (err) {
+                          console.log("Cannot open file %s : %s", file , err);
+                          return;
                         }
+                        moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
                       });
-                   }
-                 } else if(fileStat.isDirectory()) {
-                      fs.close(descriptor, function (err: any) {});
-                      if(!fileStat.isSymbolicLink())
-                        scanDir(file, storage);
-                 } else {
-                   fs.close(descriptor, function (err: any) {});
-                 }
-               }
-            });
+                    } else {
+                      console.log("file %s has no EXIF data : EXCLUDE PHOTO", file);;
+                    }
+                  }
+                });
+              }
+              } else if(fileStat.isDirectory()) {
+                if(!fileStat.isSymbolicLink())
+                  scanDir(file, storage);
+              }
+            }
+
           });
         } catch(e){}
       });
