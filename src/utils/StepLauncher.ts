@@ -1,3 +1,6 @@
+import { Logger, LOG_LEVEL } from "./Logger";
+var logger: Logger = new Logger(LOG_LEVEL.WARNING);
+
 interface stepFunction { () : void };
 
 class StepLauncher {
@@ -13,21 +16,16 @@ class StepLauncher {
   public takeMutex(){this.mutex++};
   public releaseMutex(){this.mutex--};
 
-  /*private static runStaticStep(stepNumber: number, instance: StepLauncher) : void {
-    instance.runstep(stepNumber);
-  }*/
-
   private static runstep(stepNumber: number, instance: StepLauncher) {
     if(stepNumber >= instance.numberOfSteps) {
-      console.log("stepNumber = %s ===== THIS IS FINISHED", stepNumber);
       return;
     }
     if(instance.mutex == 0){
-      console.log("============ START STEP %s ============", stepNumber);
+      logger.log(LOG_LEVEL.INFO, "============ START STEP %s ============", stepNumber);
       instance.steps[stepNumber]();
       StepLauncher.runstep(stepNumber + 1, instance);
     } else {
-      console.log("Mutex = %s wait 400ms", instance.mutex);
+      logger.log(LOG_LEVEL.DEBUG, "Mutex = %s wait 400ms", instance.mutex);
       setTimeout(function () {StepLauncher.runstep(stepNumber, instance);}, 400);
     }
   }

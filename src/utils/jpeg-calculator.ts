@@ -1,9 +1,12 @@
+import { Logger, LOG_LEVEL } from "./Logger";
+var logger: Logger = new Logger(LOG_LEVEL.WARNING);
+
 export let sizeIsOverLimits = (buffer: Buffer, minWidth: number, minHeight: number) : boolean => {
   try {
     var result: any = calculate(buffer);
     return ((result.width > minWidth) && (result.height > minHeight));
   } catch (e) {
-    console.log("ERROR file size can't be read: %s", e);
+    logger.log(LOG_LEVEL.ERROR, "ERROR file size can't be read: %s", e);
     return false;
   }
 }
