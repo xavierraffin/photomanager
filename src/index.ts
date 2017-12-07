@@ -152,12 +152,12 @@ function copyFile(newFile: string,
     import_stats.duplicates++;
     return;
   }
-  createMissingDirIfNeeded(photoDate, storage);
 
   stepLauncher.takeMutex();
   fs.stat(newFile, function(err: any, stat: any) {
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
+       createMissingDirIfNeeded(photoDate, storage);
        addGlobalStats(photoDate, dateCanBeTrusted);
 
        if(options.deleteOriginal) {
