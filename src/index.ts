@@ -23,6 +23,8 @@ const ExifImage = require('exif').ExifImage;
 const md5 = require('md5');
 
 import * as calculator from "./utils/jpeg-calculator";
+import { StepLauncher } from "./utils/StepLauncher";
+import { stepFunction } from "./utils/StepLauncher";
 
 const myArgs = process.argv.slice(2);
 const importedFolder: string = myArgs[0];
@@ -67,6 +69,8 @@ class BaseStats {
   }
 }
 
+var tags: { [tagName: string] : string[]; } = {};
+
 class GlobalStats extends BaseStats {
   private byYear: { [year: number] : BaseStats; } = {};
 
@@ -107,10 +111,6 @@ class Metadata {
 }
 
 var metadata: Metadata = new Metadata();
-
-// This array will contains Md5 for file with no EXIF data
-var mutexLocked: number = 0;
-var mutexMetadata: number = 0;
 
 var import_stats: ImportStats = new ImportStats();
 
@@ -167,14 +167,14 @@ function copyFile(newFile: string,
   }
   createMissingDirIfNeeded(photoDate, storage);
 
-  mutexLocked ++;
+  stepLauncher.takeMutex();
   fs.stat(newFile, function(err: any, stat: any) {
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
        addGlobalStats(photoDate, dateCanBeTrusted);
 
        if(options.deleteOriginal) {
-         mutexLocked ++;
+         stepLauncher.takeMutex();
          fs.rename(originalFile, newFile, function(err: any) {
             if (err) {
               console.log('ERROR renaming file: %s to %s: %s', originalFile, newFile, err);
@@ -182,10 +182,10 @@ function copyFile(newFile: string,
               console.log('file: %s imported to %s ', originalFile, newFile);
               import_stats.increment(photoDate, dateCanBeTrusted);
             }
-            mutexLocked --;
+            stepLauncher.releaseMutex();
          });
        } else { // keep original as is
-         mutexLocked ++;
+         stepLauncher.takeMutex();
          fs.writeFile(newFile, buffer, "binary", function(error: any){
            if(!error) {
               console.log("File %s copied from",newFile, originalFile);
@@ -193,7 +193,7 @@ function copyFile(newFile: string,
            } else {
               console.log("ERROR copying file %s to %s: %s", originalFile, newFile, error);
            }
-           mutexLocked --;
+           stepLauncher.releaseMutex();
          });
        }
    } else { // New file exit
@@ -204,7 +204,7 @@ function copyFile(newFile: string,
        console.log("Delete duplicate file %s",originalFile);
      }
    }
-   mutexLocked --;
+   stepLauncher.releaseMutex();
   });
 }
 
@@ -260,7 +260,7 @@ function fileNameInStorage(photoDate: Date, photoMD5: string, storage: string) {
 }
 
 function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBeTrusted: boolean, needToFilterOnSize: boolean, fileSize: number, descriptor: number): void {
-  mutexLocked ++;
+  stepLauncher.takeMutex();
 
   var bufferSize = Math.min(fileSize, MaxBufferSize);
   var buffer = new Buffer(bufferSize);
@@ -278,7 +278,7 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
          if( !calculator.sizeIsOverLimits(buffer,
                                Number(options.photoAcceptanceCriteria.minExifImageWidth),
                                Number(options.photoAcceptanceCriteria.minExifImageHeight))) {
-           mutexLocked --;
+           stepLauncher.releaseMutex();
            buffer = null;
            console.log("file %s is to small", file);
            // File is not taking account into our statistics because it is not a valid photo
@@ -296,7 +296,7 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
          }
        }
      }
-     mutexLocked --;
+     stepLauncher.releaseMutex();
      buffer = null;
   });
 }
@@ -306,7 +306,7 @@ function addGlobalStats(photoDate: Date, dateCanBeTrusted: boolean){
 }
 
 function storeMd5(file: string){
-  mutexLocked ++;
+  stepLauncher.takeMutex();
   fs.readFile(file, function(err: any, buf: string) {
     if(!err){
       const photoMD5: string = md5(buf);
@@ -320,7 +320,7 @@ function storeMd5(file: string){
         }
       }
     }
-    mutexLocked --;
+    stepLauncher.releaseMutex();
   });
 }
 
@@ -343,29 +343,29 @@ function loadObjectFromFile(storage: string, fileName: string, dataObjName: stri
 }
 
 function scanTagDir(folder: string): void {
-  mutexLocked ++;
+  stepLauncher.takeMutex();
   fs.readdir(folder, (err: any, files: string[]) => {
     if (err) {
       console.log("Unable to read TAG directory " + folder);
-      mutexLocked --;
+      stepLauncher.releaseMutex();
       return;
     }
 
     files.map(function (file) {
       return path.join(folder, file);
     }).forEach(file => {
-      mutexLocked ++;
+      stepLauncher.takeMutex();
       fs.readFile(file, function(err: any, buf: string) {
          if(err){
            console.log("Unable to read TAG file " + file);
-           mutexLocked --;
+           stepLauncher.releaseMutex();
            return;
          }
-         //TODO: LOAD TAGS
-         mutexLocked --;
+         Object.assign(tags[file], JSON.parse(buf));
+         stepLauncher.releaseMutex();
        });
     });
-    mutexLocked --;
+    stepLauncher.releaseMutex();
   });
 }
 
@@ -402,50 +402,59 @@ function loadMetadata(storage: string): void {
 }
 
 function printImportStats(): void {
-  if(mutexMetadata == 0){
-    console.log("========= Imported results =========");
-    import_stats.displayStats();
-    console.log("========== Total Storage ==========");
-    metadata.global_stats.displayStats();
-  } else {
-    //console.log("mutexMetadata = %s wait 500ms", mutexMetadata);
-    setTimeout(function () {printImportStats();}, 500);
-  }
+  console.log("========= Imported results =========");
+  import_stats.displayStats();
+  console.log("========== Total Storage ==========");
+  metadata.global_stats.displayStats();
 }
 
 function saveMetadataFile(storage: string, fileName: string, dataObjName: string): void {
-  if(mutexLocked == 0){
-    const metadataFile: string = path.join(storage, fileName);
-    var json_string: string = JSON.stringify(metadata[dataObjName]);
-    fs.writeFile(metadataFile, json_string , function(err: any){
+  const metadataFile: string = path.join(storage, fileName);
+  var json_string: string = JSON.stringify(metadata[dataObjName]);
+  stepLauncher.takeMutex();;
+  fs.writeFile(metadataFile, json_string , function(err: any){
+    if(err) {
+       console.log("Error saving metadata %s", metadataFile);
+    } else {
+       console.log("metadata %s saved", metadataFile);
+    }
+    stepLauncher.releaseMutex();;
+  });
+}
+
+function saveTagFiles(storage: string, tagFolder: string): void {
+  const tagPath: string = path.join(storage, tagFolder);
+  for (var tagName in tags) {
+    stepLauncher.takeMutex();;
+    const tagFile: string = path.join(tagPath, tagName);
+    var json_string: string = JSON.stringify(tags[tagName]);
+    fs.writeFile(tagFile, json_string , function(err: any){
       if(err) {
-         console.log("Error saving metadata %s", metadataFile);
+         console.log("Error saving tag file %s", tagFile);
       } else {
-         console.log("metadata %s saved", metadataFile);
+         console.log("Tag file %s saved", tagFile);
       }
-      mutexMetadata--;
+      stepLauncher.releaseMutex();;
     });
-  } else {
-    //console.log("Mutex = %s wait 500ms", mutexLocked);
-    setTimeout(function () {saveMetadataFile(storage, fileName, dataObjName);}, 500);
   }
 }
 
 function saveMetadata(storage: string): void {
-  mutexMetadata++;
   saveMetadataFile(storage, ".do-not-delete-stat.js", "global_stats");
   if(!options.photoAcceptanceCriteria.hasExifDate) {
-    mutexMetadata++;
     saveMetadataFile(storage, ".do-not-delete-md5.js", "weakDateMd5");
+  }
+  if(options.tags.createFromDirName) {
+    saveTagFiles(storage, "TAGS");
   }
 }
 
 function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5: boolean): void {
-  mutexLocked ++;
+  stepLauncher.takeMutex();
   fs.readdir(folder, (err: any, files: string[]) => {
     if (err) {
       console.log("Unable to read directory " + folder);
-      mutexLocked --;
+      stepLauncher.releaseMutex();
       return;
     }
 
@@ -453,12 +462,12 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
        return path.join(folder, file);
     }).forEach(file => {
        try{
-         mutexLocked ++;
+         stepLauncher.takeMutex();
          fs.lstat(file, (err: any, fileStat: any) => {
          if(!err) {
            if(fileStat.isFile()){
              if(isPhoto(file)){
-                mutexLocked ++;
+                stepLauncher.takeMutex();
                 new ExifImage({ image : file }, function (err: any, exifData: any) {
                   if(!err){
                      if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
@@ -479,7 +488,7 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
                     if(needRescanStats) addGlobalStats(fileStat.ctime, false);
                     if(needRescanMd5) storeMd5(file);
                   }
-                  mutexLocked --;
+                  stepLauncher.releaseMutex();
                 });
              }
            } else if(fileStat.isDirectory()) {
@@ -487,20 +496,20 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
                   scanStorageDir(file, needRescanStats, needRescanMd5);
            }
          }
-         mutexLocked --;
+         stepLauncher.releaseMutex();
        });
        } catch(e){}
     });
-    mutexLocked --;
+    stepLauncher.releaseMutex();
   });
 }
 
 function scanDir(folder: string, storage: string): void {
-  mutexLocked ++;
+  stepLauncher.takeMutex();
   fs.readdir(folder, (err: any, files: string[]) => {
     if (err) {
       console.log("Unable to read directory " + folder);
-      mutexLocked --;
+      stepLauncher.releaseMutex();
       return;
     }
 
@@ -508,7 +517,7 @@ function scanDir(folder: string, storage: string): void {
        return path.join(folder, file);
     }).forEach(file => {
        try{
-          mutexLocked ++;
+          stepLauncher.takeMutex();
           fs.lstat(file, function (err: any, fileStat: any) {
             if(!err){
               if(fileStat.isFile()){
@@ -516,10 +525,10 @@ function scanDir(folder: string, storage: string): void {
                 var imageSize: number = fileStat["size"];
                 if(imageSize < Number(options.photoAcceptanceCriteria.fileSizeInBytes)) {
                   console.log("%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
-                  mutexLocked --;
+                  stepLauncher.releaseMutex();
                   return;
                 }
-                mutexLocked ++;
+                stepLauncher.takeMutex();
                 new ExifImage({ image : file }, function (err: any, exifData: any) {
                   var imageSizeWasntChecked: boolean = true;
                   if(!err) {
@@ -532,17 +541,17 @@ function scanDir(folder: string, storage: string): void {
                                       file,
                                       options.photoAcceptanceCriteria.minExifImageWidth,
                                       options.photoAcceptanceCriteria.minExifImageHeight);
-                         mutexLocked --;
+                         stepLauncher.releaseMutex();
                          return;
                        } else {
                          imageSizeWasntChecked = false;
                        }
                      }
-                     mutexLocked ++;
+                     stepLauncher.takeMutex();
                      fs.open(file, 'r', function (err: any, descriptor: number) {
                        if (err) {
                          console.log("Cannot open file %s : %s", file , err);
-                         mutexLocked --;
+                         stepLauncher.releaseMutex();
                          return;
                        }
                        if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
@@ -559,25 +568,25 @@ function scanDir(folder: string, storage: string): void {
                            fs.close(descriptor, function (err: any) {});
                          }
                        }
-                       mutexLocked --;
+                       stepLauncher.releaseMutex();
                    });
                   } else {
                     if(!options.photoAcceptanceCriteria.hasExifDate) {
-                      mutexLocked ++;
+                      stepLauncher.takeMutex();
                       fs.open(file, 'r', function (err: any, descriptor: number) {
                         if (err) {
                           console.log("Cannot open file %s : %s", file , err);
-                          mutexLocked --;
+                          stepLauncher.releaseMutex();
                           return;
                         }
                         moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
-                        mutexLocked --;
+                        stepLauncher.releaseMutex();
                       });
                     } else {
                       console.log("file %s has no EXIF data : EXCLUDE PHOTO", file);;
                     }
                   }
-                  mutexLocked --;
+                  stepLauncher.releaseMutex();
                 });
               }
               } else if(fileStat.isDirectory()) {
@@ -585,18 +594,30 @@ function scanDir(folder: string, storage: string): void {
                   scanDir(file, storage);
               }
             }
-            mutexLocked --;
+            stepLauncher.releaseMutex();
           });
         } catch(e){}
       });
-    mutexLocked --;
+    stepLauncher.releaseMutex();
   });
 }
 
-loadMetadata(storageFolder);
+var stepLauncher: StepLauncher = new StepLauncher();
 
-scanDir(importedFolder, storageFolder);
+stepLauncher.addStep(function () {
+  loadMetadata(storageFolder);
+});
 
-saveMetadata(storageFolder);
+stepLauncher.addStep(function () {
+  scanDir(importedFolder, storageFolder);
+});
 
-printImportStats();
+stepLauncher.addStep(function () {
+  saveMetadata(storageFolder);
+});
+
+stepLauncher.addStep(function () {
+  printImportStats();
+});
+
+stepLauncher.start();
