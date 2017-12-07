@@ -18,7 +18,10 @@ class StepLauncher {
   }*/
 
   private static runstep(stepNumber: number, instance: StepLauncher) {
-    if(stepNumber >= instance.numberOfSteps) return;
+    if(stepNumber >= instance.numberOfSteps) {
+      console.log("stepNumber = %s ===== THIS IS FINISHED", stepNumber);
+      return;
+    }
     if(instance.mutex == 0){
       console.log("============ START STEP %s ============", stepNumber);
       instance.steps[stepNumber]();

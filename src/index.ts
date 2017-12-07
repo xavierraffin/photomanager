@@ -259,7 +259,42 @@ function fileNameInStorage(photoDate: Date, photoMD5: string, storage: string) {
   return path.join(photoPath, newFileName);
 }
 
-function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBeTrusted: boolean, needToFilterOnSize: boolean, fileSize: number, descriptor: number): void {
+function createTags(file: string, newFile: string, rootFolder: string) {
+
+  var relativePath: string = path.relative(rootFolder, file);
+  var pathSections: string[] = relativePath.split(path.sep);
+
+
+  console.log("### relativePath='%s', pathSections=%s", relativePath, pathSections);
+
+  // Loop backward on path and create tags for file from
+  // each folder encountered
+  var tagDirDepth = 1;
+  if(pathSections.length < 2) return;
+  for(var i: number = pathSections.length - 2 ; i >= 0 ; i--) {
+    if(options.tags.numberOfDirDepth < tagDirDepth ) break;
+    tagDirDepth++;
+    var folderName = pathSections[i];
+    if(typeof tags[folderName] == 'undefined') {
+      console.log("New tag found '%s'", folderName);
+      tags[folderName] = [];
+    }
+    if(tags[folderName].indexOf(newFile) === -1) { // Do not insert twice
+      tags[folderName].push(newFile);
+      console.log("add %s on tag %s", newFile, folderName);
+    }
+  }
+
+}
+
+function moveInStorage(photoDate: Date,
+                       file: string,
+                       storage: string,
+                       dateCanBeTrusted: boolean,
+                       needToFilterOnSize: boolean,
+                       fileSize: number,
+                       descriptor: number,
+                       rootFolder: string): void {
   stepLauncher.takeMutex();
 
   var bufferSize = Math.min(fileSize, MaxBufferSize);
@@ -284,6 +319,11 @@ function moveInStorage(photoDate: Date, file: string, storage: string, dateCanBe
            // File is not taking account into our statistics because it is not a valid photo
            return;
          }
+       }
+
+       if(options.tags.createFromDirName)
+       {
+          createTags(file, newFile, rootFolder);
        }
 
        if (dateCanBeTrusted || isNotAlreadyImported(photoMD5, file, newFile)){
@@ -350,18 +390,28 @@ function scanTagDir(folder: string): void {
       stepLauncher.releaseMutex();
       return;
     }
+    console.log("Load TAGS from " + folder);
 
-    files.map(function (file) {
-      return path.join(folder, file);
-    }).forEach(file => {
+    files.forEach(tagName => {
+      var file: string = path.join(folder, tagName);
       stepLauncher.takeMutex();
-      fs.readFile(file, function(err: any, buf: string) {
-         if(err){
-           console.log("Unable to read TAG file " + file);
-           stepLauncher.releaseMutex();
-           return;
+      fs.lstat(file, function (err: any, fileStat: any) {
+        if(!err){
+          if(fileStat.isFile()){
+            stepLauncher.takeMutex();
+            console.log("Read TAG from " + file);
+            fs.readFile(file, function(err: any, buf: string) {
+               if(err){
+                 console.log("Unable to read TAG file " + file);
+                 stepLauncher.releaseMutex();
+                 return;
+               }
+               tags[tagName] = [];
+               Object.assign(tags[tagName], JSON.parse(buf));
+               stepLauncher.releaseMutex();
+             });
+           }
          }
-         Object.assign(tags[file], JSON.parse(buf));
          stepLauncher.releaseMutex();
        });
     });
@@ -504,7 +554,7 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
   });
 }
 
-function scanDir(folder: string, storage: string): void {
+function scanDir(folder: string, storage: string, rootfolder: string): void {
   stepLauncher.takeMutex();
   fs.readdir(folder, (err: any, files: string[]) => {
     if (err) {
@@ -556,13 +606,13 @@ function scanDir(folder: string, storage: string): void {
                        }
                        if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
                          const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
-                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor);
+                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
                        } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
                          const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
-                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor);
+                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
                        } else {
                          if(!options.photoAcceptanceCriteria.hasExifDate) {
-                           moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
+                           moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
                          } else {
                            console.log("file %s has no EXIF date : EXCLUDE PHOTO", file);
                            fs.close(descriptor, function (err: any) {});
@@ -579,7 +629,7 @@ function scanDir(folder: string, storage: string): void {
                           stepLauncher.releaseMutex();
                           return;
                         }
-                        moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor);
+                        moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
                         stepLauncher.releaseMutex();
                       });
                     } else {
@@ -591,7 +641,7 @@ function scanDir(folder: string, storage: string): void {
               }
               } else if(fileStat.isDirectory()) {
                 if(!fileStat.isSymbolicLink())
-                  scanDir(file, storage);
+                  scanDir(file, storage, rootfolder);
               }
             }
             stepLauncher.releaseMutex();
@@ -609,7 +659,7 @@ stepLauncher.addStep(function () {
 });
 
 stepLauncher.addStep(function () {
-  scanDir(importedFolder, storageFolder);
+  scanDir(importedFolder, storageFolder, importedFolder);
 });
 
 stepLauncher.addStep(function () {
