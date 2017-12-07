@@ -179,7 +179,7 @@ function copyFile(newFile: string,
             if (err) {
               console.log('ERROR renaming file: %s to %s: %s', originalFile, newFile, err);
             } else {
-              console.log('file: %s imported to %s ', originalFile, newFile);
+              //console.log('file: %s imported to %s ', originalFile, newFile);
               import_stats.increment(photoDate, dateCanBeTrusted);
             }
             stepLauncher.releaseMutex();
@@ -188,7 +188,7 @@ function copyFile(newFile: string,
          stepLauncher.takeMutex();
          fs.writeFile(newFile, buffer, "binary", function(error: any){
            if(!error) {
-              console.log("File %s copied from",newFile, originalFile);
+              //console.log("File %s copied from",newFile, originalFile);
               import_stats.increment(photoDate, dateCanBeTrusted);
            } else {
               console.log("ERROR copying file %s to %s: %s", originalFile, newFile, error);
@@ -201,7 +201,7 @@ function copyFile(newFile: string,
      if(options.deleteOriginal) {
        //TODO : optionnaly check md5 ?
        fs.unlinkSync(originalFile);
-       console.log("Delete duplicate file %s",originalFile);
+       //console.log("Delete duplicate file %s",originalFile);
      }
    }
    stepLauncher.releaseMutex();
@@ -229,8 +229,8 @@ function createIfNotExist(dirPath: string): void {
       dirExist = true;
     }
   }
-  if(!dirExist)
-    console.log("Create directory %s ", dirPath);
+  //if(!dirExist)
+  //  console.log("Create directory %s ", dirPath);
 }
 
 function isNotAlreadyImported(md5: string, file: string, newFile: string ): boolean {
@@ -238,11 +238,11 @@ function isNotAlreadyImported(md5: string, file: string, newFile: string ): bool
     return false;
   }
   if(typeof metadata["weakDateMd5"][md5] == 'undefined') {
-    console.log("This is a new Md5 add weakDateMd5[%s]=%s", md5, newFile);
+    //console.log("This is a new Md5 add weakDateMd5[%s]=%s", md5, newFile);
     metadata["weakDateMd5"][md5] = newFile;
     return true;
   } else {
-    console.log("Duplicate Md5 %s between file %s and file %s", md5, file, newFile);
+    //console.log("Duplicate Md5 %s between file %s and file %s", md5, file, newFile);
     return false;
   }
 }
@@ -264,9 +264,6 @@ function createTags(file: string, newFile: string, rootFolder: string) {
   var relativePath: string = path.relative(rootFolder, file);
   var pathSections: string[] = relativePath.split(path.sep);
 
-
-  console.log("### relativePath='%s', pathSections=%s", relativePath, pathSections);
-
   // Loop backward on path and create tags for file from
   // each folder encountered
   var tagDirDepth = 1;
@@ -281,7 +278,7 @@ function createTags(file: string, newFile: string, rootFolder: string) {
     }
     if(tags[folderName].indexOf(newFile) === -1) { // Do not insert twice
       tags[folderName].push(newFile);
-      console.log("add %s on tag %s", newFile, folderName);
+      //console.log("add %s on tag %s", newFile, folderName);
     }
   }
 
@@ -308,14 +305,14 @@ function moveInStorage(photoDate: Date,
        var newFile = fileNameInStorage(photoDate, photoMD5, storage);
 
        if(needToFilterOnSize) {
-         console.log("We need to calculate size from file %s", file);
+         //console.log("We need to calculate size from file %s", file);
          // If size was not in exif, we must filter file acceptance based on JPEG 'real' size
          if( !calculator.sizeIsOverLimits(buffer,
                                Number(options.photoAcceptanceCriteria.minExifImageWidth),
                                Number(options.photoAcceptanceCriteria.minExifImageHeight))) {
            stepLauncher.releaseMutex();
            buffer = null;
-           console.log("file %s is to small", file);
+           //console.log("file %s is to small", file);
            // File is not taking account into our statistics because it is not a valid photo
            return;
          }
@@ -332,7 +329,7 @@ function moveInStorage(photoDate: Date,
          import_stats.duplicates++;
          if(options.deleteOriginal) {
            fs.unlinkSync(file);
-           console.log("Delete duplicate file %s", file);
+           //console.log("Delete duplicate file %s", file);
          }
        }
      }
@@ -352,10 +349,10 @@ function storeMd5(file: string){
       const photoMD5: string = md5(buf);
       if(typeof metadata["weakDateMd5"][photoMD5] == 'undefined') {
         metadata["weakDateMd5"][photoMD5] = file;
-        console.log("New scan result weakDateMd5[%s] = %s", photoMD5, metadata["weakDateMd5"][photoMD5]);
+        //console.log("New scan result weakDateMd5[%s] = %s", photoMD5, metadata["weakDateMd5"][photoMD5]);
       } else {
         if(options.deleteOriginal) {
-          console.log("Duplicate Md5 %s - remove %s in storage", photoMD5, file);
+          //console.log("Duplicate Md5 %s - remove %s in storage", photoMD5, file);
           fs.unlinkSync(file);
         }
       }
@@ -399,7 +396,7 @@ function scanTagDir(folder: string): void {
         if(!err){
           if(fileStat.isFile()){
             stepLauncher.takeMutex();
-            console.log("Read TAG from " + file);
+            //console.log("Read TAG from " + file);
             fs.readFile(file, function(err: any, buf: string) {
                if(err){
                  console.log("Unable to read TAG file " + file);
@@ -482,7 +479,7 @@ function saveTagFiles(storage: string, tagFolder: string): void {
       if(err) {
          console.log("Error saving tag file %s", tagFile);
       } else {
-         console.log("Tag file %s saved", tagFile);
+         //console.log("Tag file %s saved", tagFile);
       }
       stepLauncher.releaseMutex();;
     });
@@ -574,7 +571,7 @@ function scanDir(folder: string, storage: string, rootfolder: string): void {
                 if(isPhoto(file)){
                 var imageSize: number = fileStat["size"];
                 if(imageSize < Number(options.photoAcceptanceCriteria.fileSizeInBytes)) {
-                  console.log("%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
+                  //console.log("%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
                   stepLauncher.releaseMutex();
                   return;
                 }
@@ -587,10 +584,10 @@ function scanDir(folder: string, storage: string, rootfolder: string): void {
                      if(("exif" in exifData) && ("ExifImageWidth" in exifData.exif) && ("ExifImageHeight" in exifData.exif)){
                        if ((options.photoAcceptanceCriteria.minExifImageWidth > exifData.exif.ExifImageWidth)
                            || (options.photoAcceptanceCriteria.minExifImageHeight > exifData.exif.ExifImageHeight)) {
-                         console.log("file %s is smaller than %s x %s : EXCLUDE PHOTO",
+                         /*console.log("file %s is smaller than %s x %s : EXCLUDE PHOTO",
                                       file,
                                       options.photoAcceptanceCriteria.minExifImageWidth,
-                                      options.photoAcceptanceCriteria.minExifImageHeight);
+                                      options.photoAcceptanceCriteria.minExifImageHeight);*/
                          stepLauncher.releaseMutex();
                          return;
                        } else {
@@ -614,7 +611,7 @@ function scanDir(folder: string, storage: string, rootfolder: string): void {
                          if(!options.photoAcceptanceCriteria.hasExifDate) {
                            moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
                          } else {
-                           console.log("file %s has no EXIF date : EXCLUDE PHOTO", file);
+                           //console.log("file %s has no EXIF date : EXCLUDE PHOTO", file);
                            fs.close(descriptor, function (err: any) {});
                          }
                        }
@@ -633,7 +630,7 @@ function scanDir(folder: string, storage: string, rootfolder: string): void {
                         stepLauncher.releaseMutex();
                       });
                     } else {
-                      console.log("file %s has no EXIF data : EXCLUDE PHOTO", file);;
+                      //console.log("file %s has no EXIF data : EXCLUDE PHOTO", file);;
                     }
                   }
                   stepLauncher.releaseMutex();
