@@ -1,10 +1,20 @@
 export function formatDate(d: Date) : string {
   var dateStr: string = [d.getDate(),
                          d.getMonth()+1,
-                         d.getFullYear()].join('-')+'_'+
+                         d.getFullYear()].join('/')+'_'+
                         [d.getHours(),
                          d.getMinutes(),
                          d.getSeconds()].join(':');
+  return dateStr;
+}
+
+export function formatDateSafe(d: Date) : string {
+  var dateStr: string = [d.getFullYear(),
+                         d.getMonth()+1,
+                         d.getDate()].join('-')+'_'+
+                        [d.getHours(),
+                         d.getMinutes(),
+                         d.getSeconds()].join('-');
   return dateStr;
 }
 

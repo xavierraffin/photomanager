@@ -26,7 +26,7 @@ import * as calculator from "./utils/jpeg-calculator";
 import { StepLauncher } from "./utils/StepLauncher";
 import { stepFunction } from "./utils/StepLauncher";
 import { Logger, LOG_LEVEL } from "./utils/Logger";
-import { formatDate, dateFromExif } from "./utils/DateTime";
+import { formatDateSafe, dateFromExif } from "./utils/DateTime";
 
 const myArgs = process.argv.slice(2);
 const importedFolder: string = myArgs[0];
@@ -242,7 +242,7 @@ function fileNameInStorage(photoDate: Date, photoMD5: string, storage: string) {
   photoPath = path.join(storage, year.toString());
   photoPath = path.join(photoPath, month.toString());
 
-  const newFileName: string = formatDate(photoDate)+ "_" + photoMD5 + ".jpg";
+  const newFileName: string = formatDateSafe(photoDate)+ "_" + photoMD5 + ".jpg";
   return path.join(photoPath, newFileName);
 }
 
