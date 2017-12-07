@@ -44,7 +44,7 @@ const options = { "deleteOriginal" : false,
                     "hasExifDate" : false,
                   }
                 }
-var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
+var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
 if (options.deleteOriginal)
   logger.log(LOG_LEVEL.INFO, "Original files will be deleted after transfer.");
