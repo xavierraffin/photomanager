@@ -234,6 +234,14 @@ function isNotAlreadyImported(md5: string, file: string, newFile: string ): bool
   }
 }
 
+/*
+ * This function produce strings that should be transformed to obtain a path
+ * This to avoid conflic between UNIX and Windows separators
+ */
+function tagPathFormatter(file : string, storage: string): string {
+  return path.relative(storage, file).split(path.sep).join("|");
+}
+
 function fileNameInStorage(photoDate: Date, photoMD5: string, storage: string) {
   var photoPath: string;
   var year: number = photoDate.getFullYear();
@@ -246,7 +254,7 @@ function fileNameInStorage(photoDate: Date, photoMD5: string, storage: string) {
   return path.join(photoPath, newFileName);
 }
 
-function createTags(file: string, newFile: string, rootFolder: string) {
+function createTags(file: string, newFile: string, rootFolder: string, storage: string) {
 
   var relativePath: string = path.relative(rootFolder, file);
   var pathSections: string[] = relativePath.split(path.sep);
@@ -263,9 +271,10 @@ function createTags(file: string, newFile: string, rootFolder: string) {
       logger.log(LOG_LEVEL.INFO, "New tag found '%s'", folderName);
       tags[folderName] = [];
     }
-    if(tags[folderName].indexOf(newFile) === -1) { // Do not insert twice
-      tags[folderName].push(newFile);
-      logger.log(LOG_LEVEL.DEBUG, "add %s on tag %s", newFile, folderName);
+    var relativeFileName: string = tagPathFormatter(newFile, storage);
+    if(tags[folderName].indexOf(relativeFileName) === -1) { // Do not insert twice
+      tags[folderName].push(relativeFileName);
+      logger.log(LOG_LEVEL.DEBUG, "add %s on tag %s", relativeFileName, folderName);
     }
   }
 
@@ -307,7 +316,7 @@ function moveInStorage(photoDate: Date,
 
        if(options.tags.createFromDirName)
        {
-          createTags(file, newFile, rootFolder);
+          createTags(file, newFile, rootFolder, storage);
        }
 
        if (dateCanBeTrusted || isNotAlreadyImported(photoMD5, file, newFile)){
