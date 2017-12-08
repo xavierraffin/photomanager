@@ -19,10 +19,9 @@
 
 var fs = require('graceful-fs');
 const path = require('path');
-const ExifImage = require('exif').ExifImage;
 const md5 = require('md5');
 
-import * as calculator from "./utils/jpeg-calculator";
+import { jpegDataExtractor, JpegResult } from "./utils/jpeg-calculator";
 import { StepLauncher } from "./utils/StepLauncher";
 import { stepFunction } from "./utils/StepLauncher";
 import { Logger, LOG_LEVEL } from "./utils/Logger";
@@ -44,7 +43,7 @@ const options = { "deleteOriginal" : false,
                     "hasExifDate" : false,
                   }
                 }
-var logger: Logger = new Logger(LOG_LEVEL.INFO);
+var logger: Logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
 
 if (options.deleteOriginal)
   logger.log(LOG_LEVEL.INFO, "Original files will be deleted after transfer.");
@@ -119,7 +118,7 @@ var import_stats: ImportStats = new ImportStats();
 
 function isPhoto(file: string) : boolean {
   const extension: string = path.extname(file);
-  if((path.extname(file) == ".jpg") || (extension == ".jpeg") || (extension == ".JPG") || (extension == ".JPEG"))
+  if((extension == ".jpg") || (extension == ".jpeg") || (extension == ".JPG") || (extension == ".JPEG"))
   {
     return true;
   }
@@ -145,14 +144,6 @@ function copyFile(newFile: string,
                   storage: string,
                   dateCanBeTrusted: boolean,
                   photoDate: Date) : void {
-  /*
-   * We check if this file has already been imported in the current import operation (avoid IO race condition)
-   */
-  if(isFileAlreadyImported(newFile)) {
-    import_stats.duplicates++;
-    return;
-  }
-
   stepLauncher.takeMutex();
   fs.stat(newFile, function(err: any, stat: any) {
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
@@ -280,57 +271,47 @@ function createTags(file: string, newFile: string, rootFolder: string, storage: 
 
 }
 
-function moveInStorage(photoDate: Date,
-                       file: string,
+function moveInStorage(file: string,
                        storage: string,
-                       dateCanBeTrusted: boolean,
-                       needToFilterOnSize: boolean,
                        fileSize: number,
-                       descriptor: number,
-                       rootFolder: string): void {
+                       rootFolder: string,
+                       fileSystemDate: Date): void {
   stepLauncher.takeMutex();
-
-  var bufferSize = Math.min(fileSize, MaxBufferSize);
-  var buffer = new Buffer(bufferSize);
-
-  fs.read(descriptor, buffer, 0, bufferSize, 0, function(err: any, fileBytesSize: string, buffer: Buffer) {
-     fs.close(descriptor, function (err: any) {});
+  fs.readFile(file, function(err: any, buffer: Buffer) {
      if(!err){
-       const photoMD5: string = md5(buffer);
+       // Validate photo size, Exif, JPEG validity and extract Date
+       var photoAttributes: JpegResult = jpegDataExtractor(buffer, options);
 
-       var newFile = fileNameInStorage(photoDate, photoMD5, storage);
-
-       if(needToFilterOnSize) {
-         logger.log(LOG_LEVEL.DEBUG, "We need to calculate size from file %s", file);
-         // If size was not in exif, we must filter file acceptance based on JPEG 'real' size
-         if( !calculator.sizeIsOverLimits(buffer,
-                               Number(options.photoAcceptanceCriteria.minExifImageWidth),
-                               Number(options.photoAcceptanceCriteria.minExifImageHeight))) {
-           stepLauncher.releaseMutex();
-           buffer = null;
-           logger.log(LOG_LEVEL.DEBUG, "file %s is to small", file);
-           // File is not taking account into our statistics because it is not a valid photo
-           return;
+       if(photoAttributes.matchOptionsConditions) {
+         if(options.tags.createFromDirName)
+         {
+            createTags(file, newFile, rootFolder, storage);
          }
-       }
+         const photoMD5: string = md5(buffer);
+         var newFile = fileNameInStorage(photoDate, photoMD5, storage);
 
-       if(options.tags.createFromDirName)
-       {
-          createTags(file, newFile, rootFolder, storage);
-       }
-
-       if (dateCanBeTrusted || isNotAlreadyImported(photoMD5, file, newFile)){
-         copyFile(newFile, buffer, file, photoMD5, storage, dateCanBeTrusted, photoDate);
-       } else {
-         import_stats.duplicates++;
-         if(options.deleteOriginal) {
-           fs.unlinkSync(file);
-           logger.log(LOG_LEVEL.WARNING, "Delete duplicate file %s", file);
+         if (!isFileAlreadyImported(newFile)
+             && (photoAttributes.haveExifDate
+                 || isNotAlreadyImported(photoMD5, file, newFile))
+            ){
+           var photoDate: Date = photoAttributes.haveExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
+           copyFile(newFile,
+                    buffer,
+                    file,
+                    photoMD5,
+                    storage,
+                    photoAttributes.haveExifDate,
+                    photoDate);
+         } else {
+           import_stats.duplicates++;
+           if(options.deleteOriginal) {
+             fs.unlinkSync(file);
+             logger.log(LOG_LEVEL.WARNING, "Delete duplicate file %s", file);
+           }
          }
        }
      }
      stepLauncher.releaseMutex();
-     buffer = null;
   });
 }
 
@@ -566,74 +547,14 @@ function scanDir(folder: string, storage: string, rootfolder: string): void {
             if(!err){
               if(fileStat.isFile()){
                 if(isPhoto(file)){
-                var imageSize: number = fileStat["size"];
-                if(imageSize < Number(options.photoAcceptanceCriteria.fileSizeInBytes)) {
-                  logger.log(LOG_LEVEL.INFO, "%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
-                  stepLauncher.releaseMutex();
-                  return;
-                }
-                stepLauncher.takeMutex();
-                new ExifImage({ image : file }, function (err: any, exifData: any) {
-                  var imageSizeWasntChecked: boolean = true;
-                  if(!err) {
-                     logger.log(LOG_LEVEL.VERBOSE_DEBUG, "------------------------------------ %s", file);
-                     logger.log(LOG_LEVEL.VERBOSE_DEBUG, JSON.stringify(exifData));
-                     if(("exif" in exifData) && ("ExifImageWidth" in exifData.exif) && ("ExifImageHeight" in exifData.exif)){
-                       if ((options.photoAcceptanceCriteria.minExifImageWidth > exifData.exif.ExifImageWidth)
-                           || (options.photoAcceptanceCriteria.minExifImageHeight > exifData.exif.ExifImageHeight)) {
-                         /*logger.log(LOG_LEVEL.INFO, "file %s is smaller than %s x %s : EXCLUDE PHOTO",
-                                      file,
-                                      options.photoAcceptanceCriteria.minExifImageWidth,
-                                      options.photoAcceptanceCriteria.minExifImageHeight);*/
-                         stepLauncher.releaseMutex();
-                         return;
-                       } else {
-                         imageSizeWasntChecked = false;
-                       }
-                     }
-                     logger.log(LOG_LEVEL.DEBUG, "Read file %s", file);
-                     stepLauncher.takeMutex();
-                     fs.open(file, 'r', function (err: any, descriptor: number) {
-                       if (err) {
-                         logger.log(LOG_LEVEL.ERROR, "Cannot open file %s : %s", file , err);
-                         stepLauncher.releaseMutex();
-                         return;
-                       }
-                       if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
-                         const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
-                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
-                       } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
-                         const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
-                         moveInStorage(photoDate, file, storage, true, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
-                       } else {
-                         if(!options.photoAcceptanceCriteria.hasExifDate) {
-                           moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
-                         } else {
-                           logger.log(LOG_LEVEL.INFO, "file %s has no EXIF date : EXCLUDE PHOTO", file);
-                           fs.close(descriptor, function (err: any) {});
-                         }
-                       }
-                       stepLauncher.releaseMutex();
-                   });
-                  } else {
-                    if(!options.photoAcceptanceCriteria.hasExifDate) {
-                      stepLauncher.takeMutex();
-                      fs.open(file, 'r', function (err: any, descriptor: number) {
-                        if (err) {
-                          logger.log(LOG_LEVEL.ERROR, "Cannot open file %s : %s", file , err);
-                          stepLauncher.releaseMutex();
-                          return;
-                        }
-                        moveInStorage(fileStat.ctime, file, storage, false, imageSizeWasntChecked, imageSize, descriptor, rootfolder);
-                        stepLauncher.releaseMutex();
-                      });
-                    } else {
-                      logger.log(LOG_LEVEL.INFO, "file %s has no EXIF data : EXCLUDE PHOTO", file);;
-                    }
+                  var imageSize: number = fileStat["size"];
+                  if(imageSize < Number(options.photoAcceptanceCriteria.fileSizeInBytes)) {
+                    logger.log(LOG_LEVEL.INFO, "%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], options.photoAcceptanceCriteria.fileSizeInBytes);
+                    stepLauncher.releaseMutex();
+                    return;
                   }
-                  stepLauncher.releaseMutex();
-                });
-              }
+                  moveInStorage(file, storage, rootfolder, fileStat.ctime);
+                }
               } else if(fileStat.isDirectory()) {
                 if(!fileStat.isSymbolicLink())
                   scanDir(file, storage, rootfolder);
