@@ -50,6 +50,13 @@ if (options.deleteOriginal)
 else
   logger.log(LOG_LEVEL.INFO, "Original files will stay in place.");
 
+/*
+ * This setting determines how many thread libuv will create for fs operations
+ * From 4 to 128
+ */
+process.env.UV_THREADPOOL_SIZE = "16";
+logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
+
 // Maximum buffer size, with a default of 200 megabytes.
 var MaxBufferSize = 200*1024*1024;
 
@@ -284,14 +291,15 @@ function moveInStorage(file: string,
        var photoAttributes: JpegResult = jpegDataExtractor(buffer, options, file);
 
        if(photoAttributes.matchOptionsConditions) {
-         if(options.tags.createFromDirName)
-         {
-            createTags(file, newFile, rootFolder, storage);
-         }
          const photoMD5: string = md5(buffer);
          var photoDate: Date = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
 
          var newFile = fileNameInStorage(photoDate, photoMD5, storage);
+
+         if(options.tags.createFromDirName)
+         {
+            createTags(file, newFile, rootFolder, storage);
+         }
 
          if (!isFileAlreadyImported(newFile)
              && (photoAttributes.hasExifDate

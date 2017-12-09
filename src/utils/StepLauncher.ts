@@ -1,5 +1,5 @@
 import { Logger, LOG_LEVEL } from "./Logger";
-var logger: Logger = new Logger(LOG_LEVEL.INFO);
+var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
 
 interface stepFunction { () : void };
 
