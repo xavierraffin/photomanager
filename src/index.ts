@@ -38,8 +38,8 @@ const options = { "deleteOriginal" : false,
                   },
                   "photoAcceptanceCriteria" : {
                     "fileSizeInBytes" : "15000",
-                    "minExifImageHeight" : "300",
-                    "minExifImageWidth" : "300",
+                    "minHeight" : "300",
+                    "minWidth" : "300",
                     "hasExifDate" : false,
                   }
                 }
@@ -145,6 +145,7 @@ function copyFile(newFile: string,
                   dateCanBeTrusted: boolean,
                   photoDate: Date) : void {
   stepLauncher.takeMutex();
+  logger.log(LOG_LEVEL.DEBUG, "Copy %s to %s", originalFile, newFile);
   fs.stat(newFile, function(err: any, stat: any) {
      if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
@@ -175,6 +176,7 @@ function copyFile(newFile: string,
          });
        }
    } else { // New file exit
+     logger.log(LOG_LEVEL.DEBUG, "File %s already exist", newFile);
      import_stats.duplicates++;
      if(options.deleteOriginal) {
        //TODO : optionnaly check md5 ?
@@ -273,14 +275,13 @@ function createTags(file: string, newFile: string, rootFolder: string, storage: 
 
 function moveInStorage(file: string,
                        storage: string,
-                       fileSize: number,
                        rootFolder: string,
                        fileSystemDate: Date): void {
   stepLauncher.takeMutex();
   fs.readFile(file, function(err: any, buffer: Buffer) {
      if(!err){
        // Validate photo size, Exif, JPEG validity and extract Date
-       var photoAttributes: JpegResult = jpegDataExtractor(buffer, options);
+       var photoAttributes: JpegResult = jpegDataExtractor(buffer, options, file);
 
        if(photoAttributes.matchOptionsConditions) {
          if(options.tags.createFromDirName)
@@ -288,19 +289,20 @@ function moveInStorage(file: string,
             createTags(file, newFile, rootFolder, storage);
          }
          const photoMD5: string = md5(buffer);
+         var photoDate: Date = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
+
          var newFile = fileNameInStorage(photoDate, photoMD5, storage);
 
          if (!isFileAlreadyImported(newFile)
-             && (photoAttributes.haveExifDate
+             && (photoAttributes.hasExifDate
                  || isNotAlreadyImported(photoMD5, file, newFile))
             ){
-           var photoDate: Date = photoAttributes.haveExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
            copyFile(newFile,
                     buffer,
                     file,
                     photoMD5,
                     storage,
-                    photoAttributes.haveExifDate,
+                    photoAttributes.hasExifDate,
                     photoDate);
          } else {
            import_stats.duplicates++;
@@ -493,25 +495,20 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
              if(isPhoto(file)){
                 logger.log(LOG_LEVEL.DEBUG, "Scan file %s", folder);
                 stepLauncher.takeMutex();
-                new ExifImage({ image : file }, function (err: any, exifData: any) {
-                  if(!err){
-                     if(("exif" in exifData) && ("CreateDate" in exifData.exif)){
-                       if(needRescanStats) {
-                         const photoDate: Date = dateFromExif(exifData.exif.CreateDate);
-                         addGlobalStats(photoDate, true);
-                       }
-                     } else if(("image" in exifData) && ("ModifyDate" in exifData.image)) {
-                       if(needRescanStats) {
-                         const photoDate: Date = dateFromExif(exifData.image.ModifyDate);
-                         addGlobalStats(photoDate, true);
-                       }
-                     } else {
-                       if(needRescanStats) addGlobalStats(fileStat.ctime, false);
-                       if(needRescanMd5) storeMd5(file);
-                     }
+                fs.readFile(file, function(err: any, buffer: Buffer) {
+                   if(!err){
+                    var photoAttributes: JpegResult = jpegDataExtractor(buffer, options, file);
+
+                    const photoDate: Date = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileStat.ctime;
+                    if(needRescanStats) {
+                      addGlobalStats(photoDate, photoAttributes.hasExifDate);
+                    }
+
+                    if(!photoAttributes.hasExifDate && needRescanMd5) {
+                      storeMd5(file);
+                    }
                   } else {
-                    if(needRescanStats) addGlobalStats(fileStat.ctime, false);
-                    if(needRescanMd5) storeMd5(file);
+                     logger.log(LOG_LEVEL.ERROR, "Cannot read file %s", file);
                   }
                   stepLauncher.releaseMutex();
                 });
