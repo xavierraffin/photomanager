@@ -57,9 +57,6 @@ else
 process.env.UV_THREADPOOL_SIZE = "16";
 logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
 
-// Maximum buffer size, with a default of 200 megabytes.
-var MaxBufferSize = 200*1024*1024;
-
 class BaseStats {
   protected photos: number = 0;
   protected with_exif: number = 0;
