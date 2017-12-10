@@ -1,6 +1,6 @@
 import { StepLauncher } from "./StepLauncher";
 import { Logger, LOG_LEVEL } from "./Logger";
-var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
+var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
 class Task {
   private callback: any;
@@ -58,7 +58,7 @@ class TaskExecutor {
     this.initialTaskNumber = this.taskQueue.length;
     this.finishedTasks = 0;
     if(this.initialTaskNumber != 0) {
-      logger.log(LOG_LEVEL.DEBUG, "TaskExecutor started, number of pending tasks = %s", this.initialTaskNumber);
+      logger.log(LOG_LEVEL.INFO, "TaskExecutor started, number of pending tasks = %s", this.initialTaskNumber);
       setImmediate(TaskExecutor.eventLoopInjection, this);
     } else {
       logger.log(LOG_LEVEL.DEBUG, "TaskExecutor is empty, abort launch");
@@ -68,11 +68,11 @@ class TaskExecutor {
 
   private static eventLoopInjection(instance: TaskExecutor):void {
     logger.log(LOG_LEVEL.DEBUG, "eventLoopInjection called");
-    logger.log(LOG_LEVEL.INFO, "Task completion = %s%, (%s/%s)",
+    logger.log(LOG_LEVEL.INFO, "Task completion = %s%, (%s/%s), running tasks = %s",
                                 (instance.finishedTasks/instance.initialTaskNumber)*100,
                                 instance.finishedTasks,
-                                instance.initialTaskNumber);
-    logger.log(LOG_LEVEL.DEBUG, "There is %s tasks running before", instance.numberOfrunningTasks);
+                                instance.initialTaskNumber,
+                                instance.numberOfrunningTasks);
     while(instance.numberOfrunningTasks < instance.maxNumberOfRunningTasks)
     {
       if(instance.taskQueue.length == 0) {

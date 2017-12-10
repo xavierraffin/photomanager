@@ -1,5 +1,5 @@
 import { Logger, LOG_LEVEL } from "./Logger";
-var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
+var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
 interface stepFunction { () : void };
 
@@ -25,8 +25,8 @@ class StepLauncher {
       instance.steps[stepNumber]();
       StepLauncher.runstep(stepNumber + 1, instance);
     } else {
-      logger.log(LOG_LEVEL.DEBUG, "Mutex = %s wait 400ms", instance.mutex);
-      setTimeout(function () {StepLauncher.runstep(stepNumber, instance);}, 400);
+      logger.log(LOG_LEVEL.DEBUG, "Mutex = %s wait 500ms", instance.mutex);
+      setTimeout(function () {StepLauncher.runstep(stepNumber, instance);}, 500);
     }
   }
 

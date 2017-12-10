@@ -31,7 +31,7 @@ const myArgs = process.argv.slice(2);
 const importedFolder: string = myArgs[0];
 const storageFolder: string = myArgs[1];
 
-const numberOfParrallelTasks = 5;
+const numberOfParrallelTasks = 20;
 const executor: TaskExecutor = new TaskExecutor(numberOfParrallelTasks);
 
 const options = { "deleteOriginal" : false,
@@ -46,7 +46,7 @@ const options = { "deleteOriginal" : false,
                     "hasExifDate" : false,
                   }
                 }
-var logger: Logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
+var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
 if (options.deleteOriginal)
   logger.log(LOG_LEVEL.INFO, "Original files will be deleted after transfer.");
