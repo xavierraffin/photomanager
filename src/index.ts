@@ -22,14 +22,17 @@ const path = require('path');
 const md5 = require('md5');
 
 import { jpegDataExtractor, JpegResult } from "./utils/jpeg-calculator";
-import { StepLauncher } from "./utils/StepLauncher";
-import { stepFunction } from "./utils/StepLauncher";
+import { StepLauncher, stepFunction } from "./utils/StepLauncher";
 import { Logger, LOG_LEVEL } from "./utils/Logger";
 import { formatDateSafe, dateFromExif } from "./utils/DateTime";
+import { TaskExecutor, Task } from "./utils/TaskExecutor";
 
 const myArgs = process.argv.slice(2);
 const importedFolder: string = myArgs[0];
 const storageFolder: string = myArgs[1];
+
+const numberOfParrallelTasks = 5;
+const executor: TaskExecutor = new TaskExecutor(numberOfParrallelTasks);
 
 const options = { "deleteOriginal" : false,
                   "tags" : {
@@ -166,6 +169,7 @@ function copyFile(newFile: string,
               import_stats.increment(photoDate, dateCanBeTrusted);
             }
             stepLauncher.releaseMutex();
+            executor.taskExecutionFinish();
          });
        } else { // keep original as is
          stepLauncher.takeMutex();
@@ -177,6 +181,7 @@ function copyFile(newFile: string,
               logger.log(LOG_LEVEL.ERROR, "error copying file %s to %s: %s", originalFile, newFile, error);
            }
            stepLauncher.releaseMutex();
+           executor.taskExecutionFinish();
          });
        }
    } else { // New file exit
@@ -187,6 +192,7 @@ function copyFile(newFile: string,
        fs.unlinkSync(originalFile);
        logger.log(LOG_LEVEL.INFO, "delete duplicate file %s",originalFile);
      }
+     executor.taskExecutionFinish();
    }
    stepLauncher.releaseMutex();
   });
@@ -282,6 +288,7 @@ function moveInStorage(file: string,
                        rootFolder: string,
                        fileSystemDate: Date): void {
   stepLauncher.takeMutex();
+  executor.taskExecutionStart();
   fs.readFile(file, function(err: any, buffer: Buffer) {
      if(!err){
        // Validate photo size, Exif, JPEG validity and extract Date
@@ -315,6 +322,7 @@ function moveInStorage(file: string,
              fs.unlinkSync(file);
              logger.log(LOG_LEVEL.WARNING, "Delete duplicate file %s", file);
            }
+           executor.taskExecutionFinish();
          }
        }
      }
@@ -491,7 +499,7 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
          if(!err) {
            if(fileStat.isFile()){
              if(isPhoto(file)){
-                scanFile(folder, needRescanStats, needRescanMd5, file, fileStat.ctime);
+               executor.queueTask(scanFile, folder, needRescanStats, needRescanMd5, file, fileStat.ctime);
              }
            } else if(fileStat.isDirectory()) {
                 if(!fileStat.isSymbolicLink())
@@ -508,6 +516,7 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
 
 function scanFile(folder: string, needRescanStats: boolean, needRescanMd5: boolean, file: string, fileSystemDate: Date) {
   logger.log(LOG_LEVEL.DEBUG, "Scan file %s", folder);
+  executor.taskExecutionStart();
   stepLauncher.takeMutex();
   fs.readFile(file, function(err: any, buffer: Buffer) {
      if(!err){
@@ -525,6 +534,7 @@ function scanFile(folder: string, needRescanStats: boolean, needRescanMd5: boole
     } else {
        logger.log(LOG_LEVEL.ERROR, "Cannot read file %s", file);
     }
+    executor.taskExecutionFinish();
     stepLauncher.releaseMutex();
   });
 }
@@ -553,7 +563,7 @@ function scanDir(folder: string, storage: string, rootfolder: string): void {
                     stepLauncher.releaseMutex();
                     return;
                   }
-                  moveInStorage(file, storage, rootfolder, fileStat.ctime);
+                  executor.queueTask(moveInStorage, file, storage, rootfolder, fileStat.ctime);
                 }
               } else if(fileStat.isDirectory()) {
                 if(!fileStat.isSymbolicLink())
@@ -575,7 +585,15 @@ stepLauncher.addStep(function () {
 });
 
 stepLauncher.addStep(function () {
+  executor.start(stepLauncher);
+});
+
+stepLauncher.addStep(function () {
   scanDir(importedFolder, storageFolder, importedFolder);
+});
+
+stepLauncher.addStep(function () {
+  executor.start(stepLauncher);
 });
 
 stepLauncher.addStep(function () {
