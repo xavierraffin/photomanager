@@ -326,23 +326,16 @@ function addGlobalStats(photoDate: Date, dateCanBeTrusted: boolean){
   metadata.global_stats.increment(photoDate, dateCanBeTrusted);
 }
 
-function storeMd5(file: string){
-  stepLauncher.takeMutex();
-  fs.readFile(file, function(err: any, buf: string) {
-    if(!err){
-      const photoMD5: string = md5(buf);
-      if(typeof metadata["weakDateMd5"][photoMD5] == 'undefined') {
-        metadata["weakDateMd5"][photoMD5] = file;
-        logger.log(LOG_LEVEL.DEBUG, "New scan result weakDateMd5[%s] = %s", photoMD5, metadata["weakDateMd5"][photoMD5]);
-      } else {
-        if(options.deleteOriginal) {
-          logger.log(LOG_LEVEL.WARNING, "Duplicate Md5 %s - remove %s in storage", photoMD5, file);
-          fs.unlinkSync(file);
-        }
-      }
+function storeMd5(file: string, photoMD5: string){
+  if(typeof metadata["weakDateMd5"][photoMD5] == 'undefined') {
+    metadata["weakDateMd5"][photoMD5] = file;
+    logger.log(LOG_LEVEL.DEBUG, "New scan result weakDateMd5[%s] = %s", photoMD5, metadata["weakDateMd5"][photoMD5]);
+  } else {
+    if(options.deleteOriginal) {
+      logger.log(LOG_LEVEL.WARNING, "Duplicate Md5 %s - remove %s in storage", photoMD5, file);
+      fs.unlinkSync(file);
     }
-    stepLauncher.releaseMutex();
-  });
+  }
 }
 
 function loadObjectFromFile(storage: string, fileName: string, dataObjName: string) : boolean {
@@ -498,25 +491,7 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
          if(!err) {
            if(fileStat.isFile()){
              if(isPhoto(file)){
-                logger.log(LOG_LEVEL.DEBUG, "Scan file %s", folder);
-                stepLauncher.takeMutex();
-                fs.readFile(file, function(err: any, buffer: Buffer) {
-                   if(!err){
-                    var photoAttributes: JpegResult = jpegDataExtractor(buffer, options, file);
-
-                    const photoDate: Date = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileStat.ctime;
-                    if(needRescanStats) {
-                      addGlobalStats(photoDate, photoAttributes.hasExifDate);
-                    }
-
-                    if(!photoAttributes.hasExifDate && needRescanMd5) {
-                      storeMd5(file);
-                    }
-                  } else {
-                     logger.log(LOG_LEVEL.ERROR, "Cannot read file %s", file);
-                  }
-                  stepLauncher.releaseMutex();
-                });
+                scanFile(folder, needRescanStats, needRescanMd5, file, fileStat.ctime);
              }
            } else if(fileStat.isDirectory()) {
                 if(!fileStat.isSymbolicLink())
@@ -527,6 +502,29 @@ function scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5:
        });
        } catch(e){}
     });
+    stepLauncher.releaseMutex();
+  });
+}
+
+function scanFile(folder: string, needRescanStats: boolean, needRescanMd5: boolean, file: string, fileSystemDate: Date) {
+  logger.log(LOG_LEVEL.DEBUG, "Scan file %s", folder);
+  stepLauncher.takeMutex();
+  fs.readFile(file, function(err: any, buffer: Buffer) {
+     if(!err){
+      var photoAttributes: JpegResult = jpegDataExtractor(buffer, options, file);
+
+      const photoDate: Date = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
+      if(needRescanStats) {
+        addGlobalStats(photoDate, photoAttributes.hasExifDate);
+      }
+
+      if(!photoAttributes.hasExifDate && needRescanMd5) {
+        const photoMD5: string = md5(buffer);
+        storeMd5(file, photoMD5);
+      }
+    } else {
+       logger.log(LOG_LEVEL.ERROR, "Cannot read file %s", file);
+    }
     stepLauncher.releaseMutex();
   });
 }
