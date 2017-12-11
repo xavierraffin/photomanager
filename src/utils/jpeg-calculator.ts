@@ -124,7 +124,7 @@ function extractExifInfo (buffer: Buffer, i: number, result: JpegResult, fileNam
     var tagNumber: number = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
     logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'tagNumber = %s', tagNumber);
 
-    if ((tagNumber === 306)||(tagNumber === 36867)||(tagNumber === 36868)) { // Tag for createDate IFD0 section see: https://sno.phy.queensu.ca/~phil/exiftool/TagNames/EXIF.html
+    if ((tagNumber === 306)||(tagNumber === 36867)) { // Tag for createDate IFD0 section see: https://sno.phy.queensu.ca/~phil/exiftool/TagNames/EXIF.html _ tag 36868 seems not relevant
       result.hasExifDate = true;
 
       var createDateDataOffset: number = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
@@ -149,10 +149,6 @@ function extractExifInfo (buffer: Buffer, i: number, result: JpegResult, fileNam
 
     i += 12;
   }
-
-  var NextIFDoffest: number = isBigEndian ? buffer.readUInt32BE(i) : buffer.readUInt32LE(i);
-  logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'NextIFDoffest = %s', NextIFDoffest);
-
 }
 
 function extractData (buffer: Buffer, result: JpegResult, fileName: string) : void {
