@@ -1,5 +1,5 @@
 import { Logger, LOG_LEVEL } from "./Logger";
-var logger: Logger = new Logger(LOG_LEVEL.WARNING);
+var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
 
 export class JpegResult {
@@ -124,7 +124,7 @@ function extractExifInfo (buffer: Buffer, i: number, result: JpegResult, fileNam
     var tagNumber: number = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
     logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'tagNumber = %s', tagNumber);
 
-    if (tagNumber === 306) { // Tag for createDate
+    if ((tagNumber === 306)||(tagNumber === 36867)||(tagNumber === 36868)) { // Tag for createDate IFD0 section see: https://sno.phy.queensu.ca/~phil/exiftool/TagNames/EXIF.html
       result.hasExifDate = true;
 
       var createDateDataOffset: number = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
@@ -137,8 +137,21 @@ function extractExifInfo (buffer: Buffer, i: number, result: JpegResult, fileNam
       break;
     }
 
+    if (tagNumber === 34665) { // Tag for exif offset
+      var exifIFDOffset: number = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
+      i = offsetStart + exifIFDOffset;
+      numberOfFields = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
+      i += 2;
+      j = 0;
+      logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'Jump to EXIF IFD numberOfFields = %s, offset = %s ', numberOfFields, exifIFDOffset);
+      continue;
+    }
+
     i += 12;
   }
+
+  var NextIFDoffest: number = isBigEndian ? buffer.readUInt32BE(i) : buffer.readUInt32LE(i);
+  logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'NextIFDoffest = %s', NextIFDoffest);
 
 }
 
@@ -157,6 +170,7 @@ function extractData (buffer: Buffer, result: JpegResult, fileName: string) : vo
     if(!isJpegValid(buffer, i, result, fileName)) {
       return;
     }
+    logger.log(LOG_LEVEL.DEBUG, "Marker = 0x%s", buffer[1].toString(16));
 
     // 0xFFE1 is marker for EXIF
     if (buffer[1] === 0xE1) {
