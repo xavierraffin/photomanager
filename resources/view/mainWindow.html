@@ -6,7 +6,15 @@
   </head>
   <body>
 
-    hello
+    storage is <div id="storage"></div>
+    <script>
+      const electron = require('electron');
+      const {ipcRenderer} = electron;
+      const storageName = document.querySelector('#storage');
 
+      ipcRenderer.on('folder:set', function(e, folder){
+        storageName.innerHTML = folder;
+      });
+    </script>
   </body>
 </html>
