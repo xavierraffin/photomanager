@@ -119,7 +119,6 @@ function extractExifInfo (buffer: Buffer, i: number, result: JpegResult, fileNam
   logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'IFD contains %s fields', numberOfFields);
 
   i+=2;
-
   for(var j: number = 0; j < numberOfFields; j ++) {
     var tagNumber: number = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
     logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'tagNumber = %s', tagNumber);
@@ -142,7 +141,7 @@ function extractExifInfo (buffer: Buffer, i: number, result: JpegResult, fileNam
       i = offsetStart + exifIFDOffset;
       numberOfFields = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
       i += 2;
-      j = 0;
+      j = -1; // Will be set to 0 at next iteration
       logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'Jump to EXIF IFD numberOfFields = %s, offset = %s ', numberOfFields, exifIFDOffset);
       continue;
     }
