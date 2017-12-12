@@ -120,6 +120,8 @@ var stepLauncher: StepLauncher = new StepLauncher();
 
 export function importPhotos(importedFolder: string, storageFolder: string) {
 
+  logger.log(LOG_LEVEL.INFO, "Import %s into %s", importedFolder, storageFolder);
+
   if (options.deleteOriginal)
     logger.log(LOG_LEVEL.INFO, "Original files will be deleted after transfer.");
   else
@@ -568,6 +570,7 @@ function scanFile(folder: string, needRescanStats: boolean, needRescanMd5: boole
 
 function scanDir(folder: string, storage: string, rootfolder: string): void {
   stepLauncher.takeMutex();
+  logger.log(LOG_LEVEL.DEBUG, "Try to read directory %s", folder);
   fs.readdir(folder, (err: any, files: string[]) => {
     if (err) {
       logger.log(LOG_LEVEL.ERROR, "Unable to read directory %s", folder);

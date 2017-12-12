@@ -85,7 +85,7 @@ ipcMain.on('import:set', function (){
   }, function (folder: any){
     logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder);
     mainWindow.webContents.send('import:init', folder);
-    importPhotos(folder, store.get('storageDir'));
+    importPhotos(folder, store.get('storageDir')[0]);
   })
 })
 
