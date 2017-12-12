@@ -1,9 +1,9 @@
-import { Logger, LOG_LEVEL } from "./Logger";
+import { Logger, LOG_LEVEL } from "../utils/Logger";
 var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
-interface stepFunction { () : void };
+export interface stepFunction { () : void };
 
-class StepLauncher {
+export class StepLauncher {
   private steps: stepFunction[] = [];
   private numberOfSteps = 0;
   private mutex = 0;
@@ -34,6 +34,3 @@ class StepLauncher {
     StepLauncher.runstep(0, this);
   }
 }
-
-export { stepFunction };
-export { StepLauncher };

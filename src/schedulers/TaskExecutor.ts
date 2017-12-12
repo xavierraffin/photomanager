@@ -1,8 +1,8 @@
 import { StepLauncher } from "./StepLauncher";
-import { Logger, LOG_LEVEL } from "./Logger";
+import { Logger, LOG_LEVEL } from "../utils/Logger";
 var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
-class Task {
+export class Task {
   private callback: any;
   private args: any [];
 
@@ -16,7 +16,7 @@ class Task {
   }
 };
 
-class TaskExecutor {
+export class TaskExecutor {
 
   private taskQueue: Task[];
   private numberOfrunningTasks: number;
@@ -25,11 +25,12 @@ class TaskExecutor {
   private finishedTasks: number;
   private stepLauncher: StepLauncher;
 
-  public constructor(maxNumber: number) {
+  public constructor(maxNumber: number, stepLauncher: StepLauncher) {
     logger.log(LOG_LEVEL.DEBUG, "Executor created, max parrallel tasks = %s", maxNumber);
     this.taskQueue = [];
     this.numberOfrunningTasks = 0;
     this.maxNumberOfRunningTasks = maxNumber;
+    this.stepLauncher = stepLauncher;
   }
 
   public queueTask(...args: any []):void {
@@ -52,8 +53,7 @@ class TaskExecutor {
     logger.log(LOG_LEVEL.DEBUG, "Running task finished: total = %s", this.numberOfrunningTasks);
   }
 
-  public start(stepLauncher: StepLauncher):void {
-    this.stepLauncher = stepLauncher;
+  public start():void {
     this.stepLauncher.takeMutex();
     this.initialTaskNumber = this.taskQueue.length;
     this.finishedTasks = 0;
@@ -89,6 +89,3 @@ class TaskExecutor {
     }
   }
 }
-
-export { Task };
-export { TaskExecutor };

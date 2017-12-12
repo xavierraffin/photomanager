@@ -1,4 +1,3 @@
-
 import { formatDate } from "./DateTime";
 
 export enum LOG_LEVEL {

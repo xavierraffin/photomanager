@@ -5,29 +5,51 @@ const url = require('url');
 import {app, BrowserWindow, Menu, ipcMain} from 'electron';
 import {Store} from './utils/Store';
 import { Logger, LOG_LEVEL } from "./utils/Logger";
-import { importPhotos } from "./index";
+import { Importer } from "./importer/Importer";
 
 // SET ENV
+process.env.ELECTRON_ENABLE_STACK_DUMPING = 'true';
+process.env.ELECTRON_ENABLE_LOGGING = 'true';
 //process.env.NODE_ENV = 'production';
 process.env.NODE_ENV = 'development';
+/*
+ * This setting determines how many thread libuv will create for fs operations
+ * From 4 to 128
+ */
+process.env.UV_THREADPOOL_SIZE = "16";
+logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
+
 var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
 
-const store = new Store(
-  {
-    // 800x600 is the default size of our window
-    'windowBounds': { 'width': 1024, 'height': 600 },
-    'storageDir': '/nodefs'
-  }
-);
+const store = new Store({
+  "options" : {
+   "deleteOriginal" : false,
+   "tags" : {
+     "createFromDirName" : true,
+     "numberOfDirDepth" : 2
+   },
+   "photoAcceptanceCriteria" : {
+     "fileSizeInBytes" : "15000",
+     "minHeight" : "300",
+     "minWidth" : "300",
+     "hasExifDate" : false,
+   },
+   "window": { "width": 800, "height": 600 },
+   "storageDir": "~/Images"
+ }
+});
 
 let mainWindow: BrowserWindow;
 const dialog = electron.dialog;
+const options: any = store.get("options");
 
 app.on('ready', function(){
 
-  let { width, height  } = store.get('windowBounds');
-  logger.log(LOG_LEVEL.DEBUG, "Create window of %sx%s", width, height);
-  mainWindow = new BrowserWindow({width, height, 'show': false});
+  mainWindow = new BrowserWindow({
+    "width" : options.window.width,
+    "height" : options.window.height,
+    "show" : false
+  });
 
   mainWindow.loadURL(url.format({
     pathname: path.join(__dirname, '../resources/view/mainWindow.html'),
@@ -85,7 +107,8 @@ ipcMain.on('import:set', function (){
   }, function (folder: any){
     logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder);
     mainWindow.webContents.send('import:init', folder);
-    importPhotos(folder, store.get('storageDir')[0]);
+    var importer: Importer = new Importer(options);
+    importer.importPhotos(folder);
   })
 })
 
