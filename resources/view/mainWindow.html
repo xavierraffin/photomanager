@@ -5,30 +5,30 @@
     <title>Photo Manager</title>
   </head>
   <body>
-    <form>
-      <div>
-        <label>Folder</label>
-        <input type="text" id="folder" autofocus>
-      </div>
-      <button type="submit">set folder</button>
-    </form>
+    <div id="storage"></div>
+    <button onclick="openStorageSelection()">change storage folder</button>
+    <div id="import"></div>
+    <button onclick="openImportFolderSelection()">select import folder</button>
     <script>
       const electron = require('electron');
       const {ipcRenderer} = electron;
-      const storageName = document.querySelector('#folder');
+      const storageName = document.querySelector('#storage');
+      const importName = document.querySelector('#import');
 
-      ipcRenderer.on('folder:init', function(e, folder){
-        storageName.value = folder;
+      ipcRenderer.on('storage:init', function(e, folder){
+        storageName.innerHTML = folder;
+      });
+      ipcRenderer.on('import:init', function(e, folder){
+        importName.innerHTML = "Import "+ folder + " in progress";
       });
 
-      const form = document.querySelector('form');
-      form.addEventListener('submit', submitForm);
-
-      function submitForm(e){
-        e.preventDefault();
-        const folder = document.querySelector('#folder').value;
-        ipcRenderer.send('folder:set', folder);
+      function openStorageSelection() {
+        ipcRenderer.send('storage:set');
       }
+      function openImportFolderSelection() {
+        ipcRenderer.send('import:set');
+      }
+
     </script>
   </body>
 </html>

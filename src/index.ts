@@ -27,39 +27,6 @@ import { Logger, LOG_LEVEL } from "./utils/Logger";
 import { formatDateSafe, dateFromExif } from "./utils/DateTime";
 import { TaskExecutor, Task } from "./utils/TaskExecutor";
 
-const myArgs = process.argv.slice(2);
-const importedFolder: string = myArgs[0];
-const storageFolder: string = myArgs[1];
-
-const numberOfParrallelTasks = 20;
-const executor: TaskExecutor = new TaskExecutor(numberOfParrallelTasks);
-
-const options = { "deleteOriginal" : false,
-                  "tags" : {
-                    "createFromDirName" : true,
-                    "numberOfDirDepth" : 2
-                  },
-                  "photoAcceptanceCriteria" : {
-                    "fileSizeInBytes" : "15000",
-                    "minHeight" : "300",
-                    "minWidth" : "300",
-                    "hasExifDate" : false,
-                  }
-                }
-var logger: Logger = new Logger(LOG_LEVEL.INFO);
-
-if (options.deleteOriginal)
-  logger.log(LOG_LEVEL.INFO, "Original files will be deleted after transfer.");
-else
-  logger.log(LOG_LEVEL.INFO, "Original files will stay in place.");
-
-/*
- * This setting determines how many thread libuv will create for fs operations
- * From 4 to 128
- */
-process.env.UV_THREADPOOL_SIZE = "16";
-logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
-
 class BaseStats {
   protected photos: number = 0;
   protected with_exif: number = 0;
@@ -77,8 +44,6 @@ class BaseStats {
     return instance.photos + " (exif:" + instance.with_exif + " noexif:" + instance.without_exif + ")";
   }
 }
-
-var tags: { [tagName: string] : string[]; } = {};
 
 class GlobalStats extends BaseStats {
   private byYear: { [year: number] : BaseStats; } = {};
@@ -119,9 +84,73 @@ class Metadata {
   [key: string]: any;
 }
 
+const numberOfParrallelTasks = 20;
+const executor: TaskExecutor = new TaskExecutor(numberOfParrallelTasks);
+
+const options = { "deleteOriginal" : false,
+                  "tags" : {
+                    "createFromDirName" : true,
+                    "numberOfDirDepth" : 2
+                  },
+                  "photoAcceptanceCriteria" : {
+                    "fileSizeInBytes" : "15000",
+                    "minHeight" : "300",
+                    "minWidth" : "300",
+                    "hasExifDate" : false,
+                  }
+                }
+var logger: Logger = new Logger(LOG_LEVEL.INFO);
+
+/*
+ * This setting determines how many thread libuv will create for fs operations
+ * From 4 to 128
+ */
+process.env.UV_THREADPOOL_SIZE = "16";
+logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
+
+
+var tags: { [tagName: string] : string[]; } = {};
+
 var metadata: Metadata = new Metadata();
 
 var import_stats: ImportStats = new ImportStats();
+var importedFiles: any = {};
+
+var stepLauncher: StepLauncher = new StepLauncher();
+
+export function importPhotos(importedFolder: string, storageFolder: string) {
+
+  if (options.deleteOriginal)
+    logger.log(LOG_LEVEL.INFO, "Original files will be deleted after transfer.");
+  else
+    logger.log(LOG_LEVEL.INFO, "Original files will stay in place.");
+
+  stepLauncher.addStep(function () {
+    loadMetadata(storageFolder);
+  });
+
+  stepLauncher.addStep(function () {
+    executor.start(stepLauncher);
+  });
+
+  stepLauncher.addStep(function () {
+    scanDir(importedFolder, storageFolder, importedFolder);
+  });
+
+  stepLauncher.addStep(function () {
+    executor.start(stepLauncher);
+  });
+
+  stepLauncher.addStep(function () {
+    saveMetadata(storageFolder);
+  });
+
+  stepLauncher.addStep(function () {
+    printImportStats();
+  });
+
+  stepLauncher.start();
+}
 
 function isPhoto(file: string) : boolean {
   const extension: string = path.extname(file);
@@ -131,8 +160,6 @@ function isPhoto(file: string) : boolean {
   }
   return false;
 }
-
-var importedFiles: any = {};
 
 function isFileAlreadyImported(newFile: string) : boolean {
   if(typeof importedFiles[newFile] == 'undefined') {
@@ -577,31 +604,3 @@ function scanDir(folder: string, storage: string, rootfolder: string): void {
     stepLauncher.releaseMutex();
   });
 }
-
-var stepLauncher: StepLauncher = new StepLauncher();
-
-stepLauncher.addStep(function () {
-  loadMetadata(storageFolder);
-});
-
-stepLauncher.addStep(function () {
-  executor.start(stepLauncher);
-});
-
-stepLauncher.addStep(function () {
-  scanDir(importedFolder, storageFolder, importedFolder);
-});
-
-stepLauncher.addStep(function () {
-  executor.start(stepLauncher);
-});
-
-stepLauncher.addStep(function () {
-  saveMetadata(storageFolder);
-});
-
-stepLauncher.addStep(function () {
-  printImportStats();
-});
-
-stepLauncher.start();

@@ -1,9 +1,11 @@
+const electron = require('electron');
 const path = require('path');
 const url = require('url');
 
 import {app, BrowserWindow, Menu, ipcMain} from 'electron';
 import {Store} from './utils/Store';
 import { Logger, LOG_LEVEL } from "./utils/Logger";
+import { importPhotos } from "./index";
 
 // SET ENV
 //process.env.NODE_ENV = 'production';
@@ -19,6 +21,7 @@ const store = new Store(
 );
 
 let mainWindow: BrowserWindow;
+const dialog = electron.dialog;
 
 app.on('ready', function(){
 
@@ -34,7 +37,7 @@ app.on('ready', function(){
 
 
   mainWindow.once('ready-to-show', function(){
-    mainWindow.webContents.send('folder:init', store.get('storageDir'));
+    mainWindow.webContents.send('storage:init', store.get('storageDir'));
     logger.log(LOG_LEVEL.INFO, store.get('storageDir'));
     mainWindow.show();
   });
@@ -64,9 +67,26 @@ const mainMenuTemplate: Electron.MenuItemConstructorOptions[] = [
   }
 ];
 
-// Catch folder:settings
-ipcMain.on('folder:set', function (e: any, folder: string){
-  store.set('storageDir', folder);
+// Catch events from window
+ipcMain.on('storage:set', function (){
+  logger.log(LOG_LEVEL.DEBUG, "Open storage selection dialog");
+  dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  }, function (folder: any){
+    logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder);
+    store.set('storageDir', folder);
+    mainWindow.webContents.send('storage:init', folder);
+  })
+})
+ipcMain.on('import:set', function (){
+  logger.log(LOG_LEVEL.DEBUG, "Open import folder selection dialog");
+  dialog.showOpenDialog(mainWindow, {
+    properties: ['openDirectory']
+  }, function (folder: any){
+    logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder);
+    mainWindow.webContents.send('import:init', folder);
+    importPhotos(folder, store.get('storageDir'));
+  })
 })
 
 // Add dev tools
