@@ -1,15 +1,18 @@
 import { Logger, LOG_LEVEL } from "../utils/Logger";
 var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
-export interface stepFunction { () : void };
+export interface stepFunction {
+  methodName: string;
+  object: any;
+};
 
 export class StepLauncher {
   private steps: stepFunction[] = [];
   private numberOfSteps = 0;
   private mutex = 0;
 
-  public addStep(step: stepFunction) : void {
-    this.steps.push(step);
+  public addStep(step: string, object: any) : void {
+    this.steps.push({ "methodName" : step, "object" : object});
     this.numberOfSteps++;
   }
 
@@ -22,7 +25,7 @@ export class StepLauncher {
     }
     if(instance.mutex == 0){
       logger.log(LOG_LEVEL.INFO, "============ START STEP %s ============", stepNumber);
-      instance.steps[stepNumber]();
+      instance.steps[stepNumber].object[instance.steps[stepNumber].methodName]();
       StepLauncher.runstep(stepNumber + 1, instance);
     } else {
       logger.log(LOG_LEVEL.DEBUG, "Mutex = %s wait 500ms", instance.mutex);

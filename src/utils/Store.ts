@@ -17,6 +17,7 @@ export class Store {
     const userDataPath = (electron.app || electron.remote.app).getPath('userData');
     this.path = path.join(userDataPath, 'photomanager.json');
     this.data = parseDataFile(this.path, defaults);
+    logger.log(LOG_LEVEL.DEBUG, "Load settings from file %s", this.path);
   }
 
   get(key:string):any {

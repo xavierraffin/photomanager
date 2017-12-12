@@ -7,6 +7,8 @@ import {Store} from './utils/Store';
 import { Logger, LOG_LEVEL } from "./utils/Logger";
 import { Importer } from "./importer/Importer";
 
+var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
+
 // SET ENV
 process.env.ELECTRON_ENABLE_STACK_DUMPING = 'true';
 process.env.ELECTRON_ENABLE_LOGGING = 'true';
@@ -18,8 +20,6 @@ process.env.NODE_ENV = 'development';
  */
 process.env.UV_THREADPOOL_SIZE = "16";
 logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
-
-var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
 
 const store = new Store({
   "options" : {
@@ -59,8 +59,8 @@ app.on('ready', function(){
 
 
   mainWindow.once('ready-to-show', function(){
-    mainWindow.webContents.send('storage:init', store.get('storageDir'));
-    logger.log(LOG_LEVEL.INFO, store.get('storageDir'));
+    mainWindow.webContents.send('storage:init', options.storageDir);
+    logger.log(LOG_LEVEL.INFO, options.storageDir);
     mainWindow.show();
   });
 
@@ -95,9 +95,10 @@ ipcMain.on('storage:set', function (){
   dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory']
   }, function (folder: any){
-    logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder);
-    store.set('storageDir', folder);
-    mainWindow.webContents.send('storage:init', folder);
+    logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder[0]);
+    options.storageDir = folder[0];
+    store.set('options', options);
+    mainWindow.webContents.send('storage:init', folder[0]);
   })
 })
 ipcMain.on('import:set', function (){
@@ -105,10 +106,10 @@ ipcMain.on('import:set', function (){
   dialog.showOpenDialog(mainWindow, {
     properties: ['openDirectory']
   }, function (folder: any){
-    logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder);
-    mainWindow.webContents.send('import:init', folder);
+    logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder[0]);
+    mainWindow.webContents.send('import:init', folder[0]);
     var importer: Importer = new Importer(options);
-    importer.importPhotos(folder);
+    importer.importPhotos(folder[0]);
   })
 })
 

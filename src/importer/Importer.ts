@@ -28,7 +28,7 @@ import { TaskExecutor, Task } from "../schedulers/TaskExecutor";
 import { Logger, LOG_LEVEL } from "../utils/Logger";
 import { formatDateSafe, dateFromExif } from "../utils/DateTime";
 
-  var logger: Logger = new Logger(LOG_LEVEL.INFO);
+  var logger: Logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
 
 class Metadata {
   public weakDateMd5: { [md5: string] : string; } = {};
@@ -60,6 +60,14 @@ export class Importer {
     this.storageFolder = options.storageDir;
   }
 
+  public startExecutor(){
+    this.executor.start();
+  }
+
+  public scan(){
+    this.scanDir(this.currentImportFolder);
+  }
+
   public importPhotos(importedFolder: string) {
     this.currentImportFolder = importedFolder;
 
@@ -70,29 +78,12 @@ export class Importer {
     else
       logger.log(LOG_LEVEL.INFO, "Original files will stay in place.");
 
-    this.stepLauncher.addStep(function () {
-      this.loadMetadata();
-    });
-
-    this.stepLauncher.addStep(function () {
-      this.executor.start();
-    });
-
-    this.stepLauncher.addStep(function () {
-      this.scanDir(this.currentImportFolder);
-    });
-
-    this.stepLauncher.addStep(function () {
-      this.executor.start();
-    });
-
-    this.stepLauncher.addStep(function () {
-      this.saveMetadata();
-    });
-
-    this.stepLauncher.addStep(function () {
-      this.printImportStats();
-    });
+    this.stepLauncher.addStep("loadMetadata", this);
+    this.stepLauncher.addStep("startExecutor", this);
+    this.stepLauncher.addStep("scan", this);
+    this.stepLauncher.addStep("startExecutor", this);
+    this.stepLauncher.addStep("saveMetadata", this);
+    this.stepLauncher.addStep("printImportStats", this);
 
     this.stepLauncher.start();
   }
@@ -124,7 +115,7 @@ export class Importer {
                     photoDate: Date) : void {
     this.stepLauncher.takeMutex();
     logger.log(LOG_LEVEL.DEBUG, "Copy %s to %s", originalFile, newFile);
-    fs.stat(newFile, function(err: any, stat: any) {
+    fs.stat(newFile, (function(err: any, stat: any) {
        if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
          this.createMissingDirIfNeeded(photoDate);
@@ -132,7 +123,7 @@ export class Importer {
 
          if(this.options.deleteOriginal) {
            this.stepLauncher.takeMutex();
-           fs.rename(originalFile, newFile, function(err: any) {
+           fs.rename(originalFile, newFile, (function(err: any) {
               if (err) {
                 logger.log(LOG_LEVEL.ERROR, "error renaming file: %s to %s: %s", originalFile, newFile, err);
               } else {
@@ -141,10 +132,10 @@ export class Importer {
               }
               this.stepLauncher.releaseMutex();
               this.executor.taskExecutionFinish();
-           });
+           }).bind(this));
          } else { // keep original as is
            this.stepLauncher.takeMutex();
-           fs.writeFile(newFile, buffer, "binary", function(error: any){
+           fs.writeFile(newFile, buffer, "binary", (function(error: any){
              if(!error) {
                 logger.log(LOG_LEVEL.INFO, "file %s copied from %s",newFile, originalFile);
                 this.importStats.increment(photoDate, dateCanBeTrusted);
@@ -153,7 +144,7 @@ export class Importer {
              }
              this.stepLauncher.releaseMutex();
              this.executor.taskExecutionFinish();
-           });
+           }).bind(this));
          }
      } else { // New file exit
        logger.log(LOG_LEVEL.DEBUG, "File %s already exist", newFile);
@@ -166,7 +157,7 @@ export class Importer {
        this.executor.taskExecutionFinish();
      }
      this.stepLauncher.releaseMutex();
-    });
+    }).bind(this));
   }
 
   private createMissingDirIfNeeded(photoDate: Date): void {
@@ -228,9 +219,9 @@ export class Importer {
     return path.join(photoPath, newFileName);
   }
 
-  private createTags(file: string, newFile: string, rootFolder: string) {
+  private createTags(file: string, newFile: string) {
 
-    var relativePath: string = path.relative(rootFolder, file);
+    var relativePath: string = path.relative(this.currentImportFolder, file);
     var pathSections: string[] = relativePath.split(path.sep);
 
     // Loop backward on path and create tags for file from
@@ -255,11 +246,10 @@ export class Importer {
   }
 
   private moveInStorage( file: string,
-                         rootFolder: string,
                          fileSystemDate: Date): void {
     this.stepLauncher.takeMutex();
     this.executor.taskExecutionStart();
-    fs.readFile(file, function(err: any, buffer: Buffer) {
+    fs.readFile(file, (function(err: any, buffer: Buffer) {
        if(!err){
          // Validate photo size, Exif, JPEG validity and extract Date
          var jpegParser: JpegParser = new JpegParser(this.options, file)
@@ -273,7 +263,7 @@ export class Importer {
 
            if(this.options.tags.createFromDirName)
            {
-              this.createTags(file, newFile, rootFolder);
+              this.createTags(file, newFile);
            }
 
            if (!this.isFileAlreadyImported(newFile)
@@ -297,7 +287,7 @@ export class Importer {
          }
        }
        this.stepLauncher.releaseMutex();
-    });
+    }).bind(this));
   }
 
   private addGlobalStats(photoDate: Date, dateCanBeTrusted: boolean){
@@ -349,12 +339,12 @@ export class Importer {
       files.forEach(tagName => {
         var file: string = path.join(folder, tagName);
         this.stepLauncher.takeMutex();
-        fs.lstat(file, function (err: any, fileStat: any) {
+        fs.lstat(file, (function (err: any, fileStat: any) {
           if(!err){
             if(fileStat.isFile()){
               this.stepLauncher.takeMutex();
               logger.log(LOG_LEVEL.INFO, "Load TAG %s",file);
-              fs.readFile(file, function(err: any, buf: string) {
+              fs.readFile(file, (function(err: any, buf: string) {
                  if(err){
                    logger.log(LOG_LEVEL.ERROR, "Unable to read TAG file %s",file);
                    this.stepLauncher.releaseMutex();
@@ -363,11 +353,11 @@ export class Importer {
                  this.tags[tagName] = [];
                  Object.assign(this.tags[tagName], JSON.parse(buf));
                  this.stepLauncher.releaseMutex();
-               });
+               }).bind(this));
              }
            }
            this.stepLauncher.releaseMutex();
-         });
+         }).bind(this));
       });
       this.stepLauncher.releaseMutex();
     });
@@ -376,7 +366,7 @@ export class Importer {
   private loadTags(tagfolder: string): void {
     if(this.options.tags.createFromDirName) {
       const tagfolderPath: string = path.join(this.storageFolder, tagfolder);
-      fs.exists(tagfolderPath, function (exists: boolean) {
+      fs.exists(tagfolderPath, (function (exists: boolean) {
         if(!exists){
           logger.log(LOG_LEVEL.INFO, "Create tag folder %s", tagfolderPath);
           try {
@@ -388,11 +378,12 @@ export class Importer {
         } else {
           this.scanTagDir(tagfolderPath);
         }
-      });
+      }).bind(this));
     }
   }
 
-  private loadMetadata(): void {
+  public loadMetadata(): void {
+    logger.log(LOG_LEVEL.DEBUG, "Loading metadata from %s/TAGS", this.storageFolder);
     this.loadTags("TAGS");
     var needRescanStats: boolean = this.loadObjectFromFile(".do-not-delete-stat.js", "global_stats");
     var needRescanMd5: boolean = false;
@@ -416,14 +407,14 @@ export class Importer {
     const metadataFile: string = path.join(this.storageFolder, fileName);
     var json_string: string = JSON.stringify(this.metadata[dataObjName]);
     this.stepLauncher.takeMutex();;
-    fs.writeFile(metadataFile, json_string , function(err: any){
+    fs.writeFile(metadataFile, json_string , (function(err: any){
       if(err) {
          logger.log(LOG_LEVEL.ERROR, "error saving metadata %s", metadataFile);
       } else {
          logger.log(LOG_LEVEL.INFO, "metadata %s saved", metadataFile);
       }
       this.stepLauncher.releaseMutex();;
-    });
+    }).bind(this));
   }
 
   private saveTagFiles(tagFolder: string): void {
@@ -432,14 +423,14 @@ export class Importer {
       this.stepLauncher.takeMutex();;
       const tagFile: string = path.join(tagPath, tagName);
       var json_string: string = JSON.stringify(this.tags[tagName]);
-      fs.writeFile(tagFile, json_string , function(err: any){
+      fs.writeFile(tagFile, json_string , (function(err: any){
         if(err) {
            logger.log(LOG_LEVEL.ERROR, "error saving tag file %s", tagFile);
         } else {
            logger.log(LOG_LEVEL.INFO, "tag file %s saved", tagFile);
         }
         this.stepLauncher.releaseMutex();;
-      });
+      }).bind(this));
     }
   }
 
@@ -455,7 +446,7 @@ export class Importer {
 
   private scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5: boolean): void {
     this.stepLauncher.takeMutex();
-    fs.readdir(folder, (err: any, files: string[]) => {
+    fs.readdir(folder, ((err: any, files: string[]) => {
       if (err) {
         logger.log(LOG_LEVEL.ERROR, "Unable to read directory %s", folder);
         this.stepLauncher.releaseMutex();
@@ -467,11 +458,11 @@ export class Importer {
       }).forEach(file => {
          try{
            this.stepLauncher.takeMutex();
-           fs.lstat(file, (err: any, fileStat: any) => {
+           fs.lstat(file, ((err: any, fileStat: any) => {
            if(!err) {
              if(fileStat.isFile()){
                if(this.isPhoto(file)){
-                 this.executor.queueTask(this.scanFile, folder, needRescanStats, needRescanMd5, file, fileStat.ctime);
+                 this.executor.queueTask(this, "scanFile", folder, needRescanStats, needRescanMd5, file, fileStat.ctime);
                }
              } else if(fileStat.isDirectory()) {
                   if(!fileStat.isSymbolicLink())
@@ -479,18 +470,18 @@ export class Importer {
              }
            }
            this.stepLauncher.releaseMutex();
-         });
+         }).bind(this));
          } catch(e){}
       });
       this.stepLauncher.releaseMutex();
-    });
+    }).bind(this));
   }
 
   private scanFile(folder: string, needRescanStats: boolean, needRescanMd5: boolean, file: string, fileSystemDate: Date) {
     logger.log(LOG_LEVEL.DEBUG, "Scan file %s", folder);
     this.executor.taskExecutionStart();
     this.stepLauncher.takeMutex();
-    fs.readFile(file, function(err: any, buffer: Buffer) {
+    fs.readFile(file, (function(err: any, buffer: Buffer) {
        if(!err){
         var jpegParser: JpegParser = new JpegParser(this.options, file)
         var photoAttributes: JpegResult = jpegParser.parse(buffer);
@@ -509,13 +500,13 @@ export class Importer {
       }
       this.executor.taskExecutionFinish();
       this.stepLauncher.releaseMutex();
-    });
+    }).bind(this));
   }
 
-  private scanDir(folder: string, storage: string, rootfolder: string): void {
+  private scanDir(folder: string): void {
     this.stepLauncher.takeMutex();
     logger.log(LOG_LEVEL.DEBUG, "Try to read directory %s", folder);
-    fs.readdir(folder, (err: any, files: string[]) => {
+    fs.readdir(folder, ((err: any, files: string[]) => {
       if (err) {
         logger.log(LOG_LEVEL.ERROR, "Unable to read directory %s", folder);
         this.stepLauncher.releaseMutex();
@@ -527,7 +518,7 @@ export class Importer {
       }).forEach(file => {
          try{
             this.stepLauncher.takeMutex();
-            fs.lstat(file, function (err: any, fileStat: any) {
+            fs.lstat(file, (function (err: any, fileStat: any) {
               if(!err){
                 if(fileStat.isFile()){
                   if(this.isPhoto(file)){
@@ -537,19 +528,19 @@ export class Importer {
                       this.stepLauncher.releaseMutex();
                       return;
                     }
-                    this.executor.queueTask(this.moveInStorage, file, storage, rootfolder, fileStat.ctime);
+                    this.executor.queueTask(this, "moveInStorage", file, fileStat.ctime);
                   }
                 } else if(fileStat.isDirectory()) {
                   if(!fileStat.isSymbolicLink())
-                    this.scanDir(file, rootfolder);
+                    this.scanDir(file, this.currentImportFolder);
                 }
               }
               this.stepLauncher.releaseMutex();
-            });
+            }).bind(this));
           } catch(e){}
         });
       this.stepLauncher.releaseMutex();
-    });
+    }).bind(this));
   }
 
 }

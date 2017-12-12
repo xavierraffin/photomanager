@@ -3,16 +3,18 @@ import { Logger, LOG_LEVEL } from "../utils/Logger";
 var logger: Logger = new Logger(LOG_LEVEL.INFO);
 
 export class Task {
-  private callback: any;
+  private callbackName: string;
+  private callbackObj: any;
   private args: any [];
 
-  public constructor(callback: any, args: any []) {
-    this.callback = callback;
+  public constructor(callbackObj: any, callbackName: string, args: any []) {
+    this.callbackName = callbackName;
+    this.callbackObj = callbackObj;
     this.args = args;
   }
 
   public execute(): void{
-    this.callback(...this.args);
+    this.callbackObj[this.callbackName](...this.args);
   }
 };
 
@@ -34,9 +36,11 @@ export class TaskExecutor {
   }
 
   public queueTask(...args: any []):void {
-    var callback: any = args[0];
+    var callbackObj: any = args[0];
+    var callbackName: string = args[1];
     args.shift();
-    var task: Task = new Task(callback, args);
+    args.shift();
+    var task: Task = new Task(callbackObj, callbackName, args);
     this.taskQueue.push(task);
   }
   private popNextTask(): Task{
