@@ -5,16 +5,30 @@
     <title>Photo Manager</title>
   </head>
   <body>
-
-    storage is <div id="storage"></div>
+    <form>
+      <div>
+        <label>Folder</label>
+        <input type="text" id="folder" autofocus>
+      </div>
+      <button type="submit">set folder</button>
+    </form>
     <script>
       const electron = require('electron');
       const {ipcRenderer} = electron;
-      const storageName = document.querySelector('#storage');
+      const storageName = document.querySelector('#folder');
 
-      ipcRenderer.on('folder:set', function(e, folder){
-        storageName.innerHTML = folder;
+      ipcRenderer.on('folder:init', function(e, folder){
+        storageName.value = folder;
       });
+
+      const form = document.querySelector('form');
+      form.addEventListener('submit', submitForm);
+
+      function submitForm(e){
+        e.preventDefault();
+        const folder = document.querySelector('#folder').value;
+        ipcRenderer.send('folder:set', folder);
+      }
     </script>
   </body>
 </html>

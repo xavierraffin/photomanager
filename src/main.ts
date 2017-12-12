@@ -34,7 +34,7 @@ app.on('ready', function(){
 
 
   mainWindow.once('ready-to-show', function(){
-    mainWindow.webContents.send('folder:set', store.get('storageDir'));
+    mainWindow.webContents.send('folder:init', store.get('storageDir'));
     logger.log(LOG_LEVEL.INFO, store.get('storageDir'));
     mainWindow.show();
   });
@@ -63,6 +63,11 @@ const mainMenuTemplate: Electron.MenuItemConstructorOptions[] = [
     ]
   }
 ];
+
+// Catch folder:settings
+ipcMain.on('folder:set', function (e: any, folder: string){
+  store.set('storageDir', folder);
+})
 
 // Add dev tools
 if(process.env.NODE_ENV !== 'production'){
