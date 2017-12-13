@@ -18,11 +18,23 @@
   <div *ngIf="storageService.isStorageLoaded">
     Number of photo = {{storageService.info.photosNbr}}<br>
     Directory = {{storageService.info.dir}}<br>
-    Date = {{ storageService.getPhotoDate(storageService.info.chunck[0].n) }}<br>
-    H = {{ storageService.info.chunck[0].h }}<br>
-    W = {{ storageService.info.chunck[0].w }}<br>
-    S = {{ storageService.info.chunck[0].s }}<br>
-    <img style="width:200px" src="{{storageService.getPhotoPath(storageService.info.chunck[0].n)}}">
+    <div class="row">
+      <div *ngFor="let photo of storageService.info.chunck">
+        <div class="col s6 m4 l3">
+          <div class="card">
+            <div class="card-image">
+              <img src="{{storageService.getPhotoPath(photo.n)}}">
+            </div>
+            <!--<div class="card-content">
+              {{ storageService.getPhotoDate(photo.n) }}
+              H = {{ photo.h }}<br>
+              W = {{ photo.w }}<br>
+              S = {{ photo.s }}<br>
+            </div>-->
+          </div>
+        </div>
+      </div>
+    </div>
   </div>
   end of block
 </ng-template>
