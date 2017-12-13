@@ -1,3 +1,4 @@
+
 export function formatDate(d: Date) : string {
   var dateStr: string = [d.getDate(),
                          d.getMonth()+1,
