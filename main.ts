@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen, ipcMain } from 'electron';
+import { app, BrowserWindow, screen, ipcMain, dialog, Menu } from 'electron';
 import * as path from 'path';
 import {Store} from './src/app/utils/Store';
 import { Logger, LOG_LEVEL } from "./src/app/utils/Logger";
@@ -44,6 +44,42 @@ if (serve) {
   });
 }
 
+// menu
+const mainMenuTemplate: Electron.MenuItemConstructorOptions[] = [
+  {
+    label: 'File',
+    submenu:[
+      {
+        label: 'Quit',
+        accelerator: process.platform == 'darwin' ? 'Command+Q' : 'Ctrl+Q',
+        click(){
+          app.quit();
+        }
+      }
+    ]
+  }
+];
+
+// Add dev tools
+if(process.env.NODE_ENV !== 'production'){
+  mainMenuTemplate.push({
+    label: 'Dev',
+    submenu:[
+      {
+        label: 'Open dev tools',
+        accelerator: process.platform == 'darwin' ? 'Command+I' : 'Ctrl+I',
+        click(item: any, focusedWindow: Electron.BrowserWindow){
+          focusedWindow.webContents.toggleDevTools();
+        }
+      },
+      {
+        role: 'reload',
+        accelerator: 'F5'
+      }
+    ]
+  });
+}
+
 function createWindow() {
 
   const electronScreen = screen;
@@ -54,21 +90,28 @@ function createWindow() {
     x: 0,
     y: 0,
     width: size.width,
-    height: size.height
+    height: size.height,
+    show: false
   });
 
   // and load the index.html of the app.
   win.loadURL('file://' + __dirname + '/index.html');
 
-  // Open the DevTools.
-  if (serve) {
-    win.webContents.openDevTools();
-  }
-
   // Emitted when the window is closed.
   win.on('closed', () => {
     app.quit();
   });
+
+  win.once('ready-to-show', function(){
+    if(options.storageDir != "") {
+      win.webContents.send('storage:valueset', options.storageDir);
+      logger.log(LOG_LEVEL.INFO, options.storageDir);
+    }
+    win.show();
+  });
+
+  const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
+  Menu.setApplicationMenu(mainMenu);
 }
 
 try {
@@ -87,8 +130,26 @@ try {
   });
 
   ipcMain.on('set:storage', function (){
-  logger.log(LOG_LEVEL.INFO,"Receive set:storage event");
-    app.quit();
+    logger.log(LOG_LEVEL.DEBUG, "Open storage selection dialog");
+    dialog.showOpenDialog(win, {
+      properties: ['openDirectory']
+    }, function (folder: any){
+      logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder[0]);
+      options.storageDir = folder[0];
+      store.set('options', options);
+      win.webContents.send('storage:valueset', folder[0]);
+    })
+  });
+  ipcMain.on('set:import', function (){
+    logger.log(LOG_LEVEL.DEBUG, "Open import folder selection dialog");
+    dialog.showOpenDialog(win, {
+      properties: ['openDirectory']
+    }, function (folder: any){
+      logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder[0]);
+      win.webContents.send('import:valueset', folder[0]);
+      var importer: Importer = new Importer(options);
+      importer.importPhotos(folder[0]);
+    })
   });
 
 } catch (e) {
