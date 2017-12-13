@@ -9,7 +9,7 @@ export class StorageService {
   private electron: ElectronService;
   public isStorageSelected: boolean;
   public isStorageLoaded: boolean;
-  public storageInfo: StorageInfo_IPC;
+  public info: StorageInfo_IPC;
 
   // This copies are needed for usage in template
   //private getPhotoDate = getIPCPhotoDate;
@@ -21,7 +21,7 @@ export class StorageService {
     this.isStorageLoaded = false;
     this.electron.ipcRenderer.on('storage:loaded', (function(e, storageInfo: StorageInfo_IPC){
       this.isStorageLoaded = true;
-      this.storageInfo = storageInfo;
+      this.info = storageInfo;
     }).bind(this));
     this.electron.ipcRenderer.on('storage:selected', (function(e, storageInfo: StorageInfo_IPC){
       this.isStorageSelected = true;
