@@ -3,8 +3,9 @@
   "version": "0.0.1",
   "description": "Photomanager helps you to sort photos",
   "scripts": {
-    "build": "tsc",
-    "start": "npm run build && node_modules/.bin/electron dist/main.js"
+    "build": "npm run build-sass && tsc",
+    "start": "npm run build && node_modules/.bin/electron dist/main.js",
+    "build-sass": "node-sass resources/lib/materialize/sass/materialize.scss dist/css/materialize.css"
   },
   "author": "Xavier Raffin",
   "license": "GPL-3.0",
@@ -19,6 +20,7 @@
   },
   "devDependencies": {
     "@types/node": "^8.0.54",
-    "electron": "1.7.9"
+    "electron": "1.7.9",
+    "node-sass": "^4.7.2"
   }
 }

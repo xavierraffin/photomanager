@@ -3,12 +3,19 @@
   <head>
     <meta charset="UTF-8">
     <title>Photo Manager</title>
+    <link rel="stylesheet" href="../../dist/css/materialize.css">
   </head>
   <body>
+    <nav>
+      <div class="nav-wrapper">
+        <a class="brand-logo center">ddd!</a>
+      </div>
+    </nav>
+
     <div id="storage"></div>
-    <button onclick="openStorageSelection()">change storage folder</button>
+    <button class="btn waves-effect waves-light" onclick="sendEvent('storage:set')">change storage folder</button>
     <div id="import"></div>
-    <button onclick="openImportFolderSelection()">select import folder</button>
+    <button class="btn waves-effect waves-light" onclick="sendEvent('import:set')">select import folder</button>
     <script>
       const electron = require('electron');
       const {ipcRenderer} = electron;
@@ -22,11 +29,8 @@
         importName.innerHTML = "Import "+ folder + " in progress";
       });
 
-      function openStorageSelection() {
-        ipcRenderer.send('storage:set');
-      }
-      function openImportFolderSelection() {
-        ipcRenderer.send('import:set');
+      function sendEvent(event) {
+        ipcRenderer.send(event);
       }
 
     </script>
