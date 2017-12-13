@@ -1,6 +1,23 @@
-<div class="container">
-  <h1 class="title">
-    {{ 'PAGES.HOME.TITLE' | translate }}
-  </h1>
-  <button (click)="sendEvent('set:storage')">{{ 'PAGES.HOME.STORAGE_SELECT_BUTTON' | translate }}</button>
-</div>
+<div *ngIf="isStorageSelected;then main_view; else storage_select">here is ignored</div>
+
+<ng-template #storage_select>
+  <div class="container">
+    <h1 class="title">
+      {{ 'PAGES.HOME.TITLE' | translate }}
+    </h1>
+    <button (click)="sendEvent('set:storage')">{{ 'PAGES.HOME.STORAGE_SELECT_BUTTON' | translate }}</button>
+  </div>
+</ng-template>
+
+<ng-template #main_view>
+  <div *ngIf="storageInfo">
+    Number of photo = {{storageInfo.photosNbr}}<br>
+    Directory = {{storageInfo.dir}}<br>
+    Date = {{ getPhotoDate(storageInfo.chunck[0].n) }}<br>
+    H = {{ storageInfo.chunck[0].h }}<br>
+    W = {{ storageInfo.chunck[0].w }}<br>
+    S = {{ storageInfo.chunck[0].s }}<br>
+    <img style="width:200px" src="{{storageInfo.dir + getPhotoPath(storageInfo.chunck[0].n)}}">
+  </div>
+  end of block
+</ng-template>

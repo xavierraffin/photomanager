@@ -3,6 +3,8 @@ import * as path from 'path';
 import {Store} from './src/app/utils/Store';
 import { Logger, LOG_LEVEL } from "./src/app/utils/Logger";
 import { Importer } from "./src/app/import/Importer";
+import { StorageInfo_IPC } from './src/app/model/Storage';
+import { PhotoInfo_IPC } from './src/app/model/Photo';
 
 var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
 
@@ -129,6 +131,28 @@ try {
     }
   });
 
+  ipcMain.on('load:storage', function (){
+    logger.log(LOG_LEVEL.DEBUG, "GUI ask to load storage");
+    if(options.storageDir != "") {
+      const storageInfo: StorageInfo_IPC = {
+        "photosNbr": 10,
+        "years": [2017, 2004, 2001],
+        "dir": (<string> options.storageDir),
+        "chunck": [
+          (<PhotoInfo_IPC>{ "n": "2017-12-10_13-2-52_03ac9d5b17c28a3272a0450b3136b0b9",
+            "h": 2000,
+            "w": 3000,
+            "s": 4000
+          }),
+          (<PhotoInfo_IPC>{ "n": "2017-12-10_13-2-52_0903abd475fa7d3053327aa31b3cc39d",
+            "h": 1000,
+            "w": 2000,
+            "s": 5000
+          })]
+      };
+      win.webContents.send('storage:loaded', storageInfo);
+    }
+  });
   ipcMain.on('set:storage', function (){
     logger.log(LOG_LEVEL.DEBUG, "Open storage selection dialog");
     dialog.showOpenDialog(win, {

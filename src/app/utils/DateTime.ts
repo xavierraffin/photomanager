@@ -18,10 +18,18 @@ export function formatDateSafe(d: Date) : string {
   return dateStr;
 }
 
+export function datefromSafeFormat(str: string) : Date {
+  return dateFromStr(str, "_", "-");
+}
+
 export function dateFromExif(exifDate: string) : Date {
-  var DateTime: string[] = exifDate.split(" ");
-  var dateParts: string[] = DateTime[0].split(":");
-  var timeParts: string[] = DateTime[1].split(":");
+  return dateFromStr(exifDate, " ", ":");
+}
+
+function dateFromStr(str: string, majorSeparator: string, minorSeparator: string) {
+  var DateTime: string[] = str.split(majorSeparator);
+  var dateParts: string[] = DateTime[0].split(minorSeparator);
+  var timeParts: string[] = DateTime[1].split(minorSeparator);
   return new Date( Number(dateParts[0]),
                    Number(dateParts[1]) - 1,
                    Number(dateParts[2]),
