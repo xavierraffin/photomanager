@@ -1,9 +1,43 @@
 import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import * as path from 'path';
+import {Store} from './src/app/utils/Store';
+import { Logger, LOG_LEVEL } from "./src/app/utils/Logger";
+import { Importer } from "./src/app/import/Importer";
+
+var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
+
+
+// SET ENV
+process.env.ELECTRON_ENABLE_STACK_DUMPING = 'true';
+process.env.ELECTRON_ENABLE_LOGGING = 'true';
+/*
+ * This setting determines how many thread libuv will create for fs operations
+ * From 4 to 128
+ */
+process.env.UV_THREADPOOL_SIZE = "16";
+logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
+
+const store = new Store({
+  "options" : {
+   "deleteOriginal" : false,
+   "tags" : {
+     "createFromDirName" : true,
+     "numberOfDirDepth" : 2
+   },
+   "photoAcceptanceCriteria" : {
+     "fileSizeInBytes" : "15000",
+     "minHeight" : "300",
+     "minWidth" : "300",
+     "hasExifDate" : false,
+   },
+   "storageDir": ""
+ }
+});
 
 let win, serve;
 const args = process.argv.slice(1);
 serve = args.some(val => val === '--serve');
+const options: any = store.get("options");
 
 if (serve) {
   require('electron-reload')(__dirname, {
@@ -33,10 +67,7 @@ function createWindow() {
 
   // Emitted when the window is closed.
   win.on('closed', () => {
-    // Dereference the window object, usually you would store window
-    // in an array if your app supports multi windows, this is the time
-    // when you should delete the corresponding element.
-    win = null;
+    app.quit();
   });
 }
 
@@ -47,15 +78,6 @@ try {
   // Some APIs can only be used after this event occurs.
   app.on('ready', createWindow);
 
-  // Quit when all windows are closed.
-  app.on('window-all-closed', () => {
-    // On OS X it is common for applications and their menu bar
-    // to stay active until the user quits explicitly with Cmd + Q
-    if (process.platform !== 'darwin') {
-      app.quit();
-    }
-  });
-
   app.on('activate', () => {
     // On OS X it's common to re-create a window in the app when the
     // dock icon is clicked and there are no other windows open.
@@ -65,7 +87,7 @@ try {
   });
 
   ipcMain.on('set:storage', function (){
-    console.log("event !!!");
+  logger.log(LOG_LEVEL.INFO,"Receive set:storage event");
     app.quit();
   });
 

@@ -135,7 +135,7 @@ export class Importer {
            }).bind(this));
          } else { // keep original as is
            this.stepLauncher.takeMutex();
-           fs.writeFile(newFile, buffer, "binary", (function(error: any){
+           fs.writeFile(newFile, buffer, {"mode":"binary"}, (function(error: any){
              if(!error) {
                 logger.log(LOG_LEVEL.INFO, "file %s copied from %s",newFile, originalFile);
                 this.importStats.increment(photoDate, dateCanBeTrusted);

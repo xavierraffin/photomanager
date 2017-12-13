@@ -1,4 +1,5 @@
 import { Component, OnInit } from '@angular/core';
+import { ElectronService } from '../../providers/electron.service';
 
 @Component({
   selector: 'app-home',
@@ -7,9 +8,17 @@ import { Component, OnInit } from '@angular/core';
 })
 export class HomeComponent implements OnInit {
 
-  constructor() { }
+  private electronService: ElectronService;
+
+  constructor(electronService: ElectronService) {
+    this.electronService = electronService;
+  }
 
   ngOnInit() {
+  }
+
+  sendEvent(eventName: string) {
+    this.electronService.ipcRenderer.send(eventName);
   }
 
 }
