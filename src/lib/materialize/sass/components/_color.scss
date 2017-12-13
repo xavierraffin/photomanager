@@ -337,6 +337,24 @@ $shades: (
   "transparent":  transparent
 );
 
+// Custom colors palette
+// https://medium.com/@mancebo128/how-to-properly-add-custom-colors-to-materialize-css-52e5e4c58d58
+$custom1: (
+        "base": $color1
+);
+$custom2: (
+        "base": $color2
+);
+$custom3: (
+        "base": $color3
+);
+$custom4: (
+        "base": $color4
+);
+$custom5: (
+        "base": $color5
+);
+
 $colors: (
   "materialize-red": $materialize-red,
   "red": $red,
@@ -358,7 +376,12 @@ $colors: (
   "brown": $brown,
   "blue-grey": $blue-grey,
   "grey": $grey,
-  "shades": $shades
+  "shades": $shades,
+  "custom1": $custom1,
+  "custom2": $custom2,
+  "custom3": $custom3,
+  "custom4": $custom4,
+  "custom5": $custom5
 ) !default;
 
 
@@ -409,4 +432,3 @@ $colors: (
   @warn "Unknown `#{$color}` - `#{$type}` in $colors.";
   @return null;
 }
-

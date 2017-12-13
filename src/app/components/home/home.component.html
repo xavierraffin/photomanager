@@ -5,11 +5,16 @@
     <h1 class="title">
       {{ 'PAGES.HOME.TITLE' | translate }}
     </h1>
-    <button (click)="sendEvent('set:storage')">{{ 'PAGES.HOME.STORAGE_SELECT_BUTTON' | translate }}</button>
+    <button class="btn waves-effect waves-light" (click)="sendEvent('set:storage')">{{ 'PAGES.HOME.STORAGE_SELECT_BUTTON' | translate }}</button>
   </div>
 </ng-template>
 
 <ng-template #main_view>
+  <nav>
+      <div class="nav-wrapper">
+        <a class="brand-logo center">ddd!</a>
+      </div>
+  </nav>
   <div *ngIf="storageInfo">
     Number of photo = {{storageInfo.photosNbr}}<br>
     Directory = {{storageInfo.dir}}<br>
