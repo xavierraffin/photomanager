@@ -1,7 +1,6 @@
 import { Component, OnInit } from '@angular/core';
 import { ElectronService } from '../../providers/electron.service';
-import { StorageInfo_IPC } from '../../model/Storage';
-import { getIPCPhotoDate, getIPCPhotoPath } from '../../model/Photo';
+import { StorageService } from '../../providers/storage.service';
 
 @Component({
   selector: 'app-home',
@@ -11,26 +10,14 @@ import { getIPCPhotoDate, getIPCPhotoPath } from '../../model/Photo';
 export class HomeComponent implements OnInit {
 
   private electronService: ElectronService;
-  private isStorageSelected: boolean;
-  private storageInfo: StorageInfo_IPC;
+  private storageService: StorageService;
 
-  // This copies are needed for usage in template
-  private getPhotoDate = getIPCPhotoDate;
-  private getPhotoPath = getIPCPhotoPath;
-
-  constructor(electronService: ElectronService) {
+  constructor(electronService: ElectronService, storageService: StorageService) {
     this.electronService = electronService;
-    this.isStorageSelected = false;
+    this.storageService = storageService;
   }
 
   ngOnInit() {
-    this.electronService.ipcRenderer.on('storage:valueset', (function(e, folder: string){
-      this.isStorageSelected = true;
-    }).bind(this));
-    this.electronService.ipcRenderer.on('storage:loaded', (function(e, storageInfo: StorageInfo_IPC){
-      this.storageInfo = storageInfo;
-    }).bind(this));
-    this.electronService.ipcRenderer.send('load:storage');
   }
 
   sendEvent(eventName: string) {

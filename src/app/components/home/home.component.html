@@ -1,4 +1,4 @@
-<div *ngIf="isStorageSelected;then main_view; else storage_select">here is ignored</div>
+<div *ngIf="storageService.isStorageSelected;then main_view; else storage_select">here is ignored</div>
 
 <ng-template #storage_select>
   <div class="container">
@@ -15,14 +15,14 @@
         <a class="brand-logo center">ddd!</a>
       </div>
   </nav>
-  <div *ngIf="storageInfo">
-    Number of photo = {{storageInfo.photosNbr}}<br>
-    Directory = {{storageInfo.dir}}<br>
-    Date = {{ getPhotoDate(storageInfo.chunck[0].n) }}<br>
-    H = {{ storageInfo.chunck[0].h }}<br>
-    W = {{ storageInfo.chunck[0].w }}<br>
-    S = {{ storageInfo.chunck[0].s }}<br>
-    <img style="width:200px" src="{{storageInfo.dir + getPhotoPath(storageInfo.chunck[0].n)}}">
+  <div *ngIf="storageService.isStorageLoaded">
+    Number of photo = {{storageService.info.photosNbr}}<br>
+    Directory = {{storageService.info.dir}}<br>
+    Date = {{ storageService.getPhotoDate(storageService.info.chunck[0].n) }}<br>
+    H = {{ storageService.info.chunck[0].h }}<br>
+    W = {{ storageService.info.chunck[0].w }}<br>
+    S = {{ storageService.info.chunck[0].s }}<br>
+    <img style="width:200px" src="{{storageService.info.dir + getPhotoPath(storageService.info.chunck[0].n)}}">
   </div>
   end of block
 </ng-template>

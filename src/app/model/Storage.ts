@@ -93,11 +93,11 @@ export class Storage {
   private loadMetadata(): void {
     logger.log(LOG_LEVEL.DEBUG, "Loading metadata from %s", this.storageInfo.dir);
     this.loadTags("TAGS");
-    var needRescanStats: boolean = this.loadObjectFromFile(".do-not-delete-stat.js", "global_stats");
-    var needRescanIPC: boolean = this.loadObjectFromFile(".do-not-delete-storageIPC.js", "storageInfo");
+    var needRescanStats: boolean = this.loadObjectFromFile(".do-not-delete-stat.js", this.metadata["global_stats"]);
+    var needRescanIPC: boolean = this.loadObjectFromFile(".do-not-delete-storageIPC.js", this.storageInfo);
     var needRescanMd5: boolean = false;
     if(!this.options.photoAcceptanceCriteria.hasExifDate) {
-      needRescanMd5 = this.loadObjectFromFile(".do-not-delete-md5.js", "weakDateMd5");
+      needRescanMd5 = this.loadObjectFromFile(".do-not-delete-md5.js", this.metadata["global_stats"]);
     }
     if (needRescanStats || needRescanMd5 || needRescanIPC) {
       logger.log(LOG_LEVEL.WARNING, "Missing metadata recreate them by a scan (%s/%s/%s)", needRescanStats, needRescanMd5, needRescanIPC);
@@ -119,13 +119,13 @@ export class Storage {
     }
   }
 
-  private loadObjectFromFile(fileName: string, dataObjName: string) : boolean {
+  private loadObjectFromFile(fileName: string, data: any) : boolean {
     const metadataFile = path.join(this.storageInfo.dir, fileName);
     try {
       var json_string: string = fs.readFileSync(metadataFile).toString();
       logger.log(LOG_LEVEL.INFO, "Load metadata file %s", metadataFile);
       try {
-        (<any>Object).assign(this.metadata[dataObjName], JSON.parse(json_string));
+        (<any>Object).assign(data, JSON.parse(json_string));
       } catch(e) {
         logger.log(LOG_LEVEL.WARNING, "Metadata file %s is corrupted delete it and recreate: error=%s", fileName, e);
         fs.unlinkSync(metadataFile);

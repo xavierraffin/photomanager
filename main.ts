@@ -41,6 +41,8 @@ const args = process.argv.slice(1);
 serve = args.some(val => val === '--serve');
 const options: any = store.get("options");
 var storage: Storage;
+var isStorageInfoLoaded = false;
+var isLoadedEventWaited = false;
 
 if (serve) {
   require('electron-reload')(__dirname, {
@@ -107,22 +109,30 @@ function createWindow() {
 
   win.once('ready-to-show', function(){
     if(options.storageDir != "") {
-      win.webContents.send('storage:valueset', options.storageDir);
-      storage = new Storage(options);
-      storage.load(storageLoaded);
-      logger.log(LOG_LEVEL.INFO, "storage folder is %s", options.storageDir);
+      win.webContents.send('storage:selected', options.storageDir);
+      loadStorage(options);
     }
     win.show();
-
   });
 
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
   Menu.setApplicationMenu(mainMenu);
 }
 
+function loadStorage(options: any) {
+  logger.log(LOG_LEVEL.INFO, "loadStorage %s", options.storageDir);
+  storage = new Storage(options); // TODO check if we memory leak with this line
+  storage.load(storageLoaded);
+}
+
 function storageLoaded(storageInfo: StorageInfo_IPC) {
+  isStorageInfoLoaded = true;
   logger.log(LOG_LEVEL.INFO, "Storage is loaded, numberOfPhotos = %s", storageInfo.photosNbr);
-  win.webContents.send('storage:loaded', storageInfo);
+  if(isLoadedEventWaited) {
+    logger.log(LOG_LEVEL.DEBUG, "Storage was waited: send it");
+    win.webContents.send('storage:loaded', storage.getInfo_IPC());
+    isLoadedEventWaited = false;
+  }
 }
 
 try {
@@ -143,26 +153,13 @@ try {
   ipcMain.on('load:storage', function (){
     logger.log(LOG_LEVEL.DEBUG, "GUI ask to load storage");
     if(options.storageDir != "") {
-      const storageInfo: StorageInfo_IPC = {
-        "photosNbr": 10,
-        "years": [2017, 2004, 2001],
-        "dir": (<string> options.storageDir),
-        "tags": [],
-        "chunck": [
-          (<PhotoInfo_IPC>{ "n": "2017-12-10_13-2-52_03ac9d5b17c28a3272a0450b3136b0b9",
-            "h": 2000,
-            "w": 3000,
-            "s": 4000,
-            "t": []
-          }),
-          (<PhotoInfo_IPC>{ "n": "2017-12-10_13-2-52_0903abd475fa7d3053327aa31b3cc39d",
-            "h": 1000,
-            "w": 2000,
-            "s": 5000,
-            "t": []
-          })]
-      };
-      win.webContents.send('storage:loaded', storageInfo);
+      if(isStorageInfoLoaded) {
+        logger.log(LOG_LEVEL.DEBUG, "Storage is ready: send it");
+        win.webContents.send('storage:loaded', storage.getInfo_IPC());
+      } else {
+        logger.log(LOG_LEVEL.DEBUG, "Storage is not ready: wait for it");
+        isLoadedEventWaited = true; // Then the event will be sent when ready
+      }
     }
   });
   ipcMain.on('set:storage', function (){
@@ -173,7 +170,8 @@ try {
       logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder[0]);
       options.storageDir = folder[0];
       store.set('options', options);
-      win.webContents.send('storage:valueset', folder[0]);
+      win.webContents.send('storage:selected', folder[0]);
+      loadStorage(options);
     })
   });
   ipcMain.on('set:import', function (){
@@ -182,7 +180,7 @@ try {
       properties: ['openDirectory']
     }, function (folder: any){
       logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder[0]);
-      win.webContents.send('import:valueset', folder[0]);
+      win.webContents.send('import:selected', folder[0]);
       var importer: Importer = new Importer(options);
       importer.importPhotos(folder[0]);
     })
