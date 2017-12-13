@@ -45,8 +45,8 @@ var isStorageInfoLoaded = false;
 var isLoadedEventWaited = false;
 
 if (serve) {
-  require('electron-reload')(__dirname, {
-  });
+  //require('electron-reload')(__dirname, {
+  //});
 }
 
 // menu

@@ -35,7 +35,7 @@ export class StorageService {
   }
 
   public getPhotoPath(s: string) {
-    return getIPCPhotoPath(s);
+    return this.info.dir + getIPCPhotoPath(s);
   }
 
 

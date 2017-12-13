@@ -22,7 +22,7 @@
     H = {{ storageService.info.chunck[0].h }}<br>
     W = {{ storageService.info.chunck[0].w }}<br>
     S = {{ storageService.info.chunck[0].s }}<br>
-    <img style="width:200px" src="{{storageService.info.dir + getPhotoPath(storageService.info.chunck[0].n)}}">
+    <img style="width:200px" src="{{storageService.getPhotoPath(storageService.info.chunck[0].n)}}">
   </div>
   end of block
 </ng-template>
