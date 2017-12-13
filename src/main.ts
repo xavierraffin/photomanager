@@ -12,8 +12,7 @@ var logger: Logger = new Logger(LOG_LEVEL.DEBUG);
 // SET ENV
 process.env.ELECTRON_ENABLE_STACK_DUMPING = 'true';
 process.env.ELECTRON_ENABLE_LOGGING = 'true';
-//process.env.NODE_ENV = 'production';
-process.env.NODE_ENV = 'development';
+
 /*
  * This setting determines how many thread libuv will create for fs operations
  * From 4 to 128
@@ -35,7 +34,7 @@ const store = new Store({
      "hasExifDate" : false,
    },
    "window": { "width": 800, "height": 600 },
-   "storageDir": "~/Images"
+   "storageDir": ""
  }
 });
 
@@ -43,7 +42,7 @@ let mainWindow: BrowserWindow;
 const dialog = electron.dialog;
 const options: any = store.get("options");
 
-app.on('ready', function(){
+function createWindow(){
 
   mainWindow = new BrowserWindow({
     "width" : options.window.width,
@@ -71,7 +70,9 @@ app.on('ready', function(){
 
   const mainMenu = Menu.buildFromTemplate(mainMenuTemplate);
   Menu.setApplicationMenu(mainMenu);
-});
+}
+
+app.on('ready', createWindow);
 
 // menu
 const mainMenuTemplate: Electron.MenuItemConstructorOptions[] = [
@@ -112,6 +113,14 @@ ipcMain.on('import:set', function (){
     importer.importPhotos(folder[0]);
   })
 })
+
+app.on('activate', () => {
+  // On macOS it's common to re-create a window in the app when the
+  // dock icon is clicked and there are no other windows open.
+  if (mainWindow === null) {
+    createWindow();
+  }
+});
 
 // Add dev tools
 if(process.env.NODE_ENV !== 'production'){

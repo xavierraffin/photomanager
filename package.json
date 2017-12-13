@@ -14,11 +14,13 @@
     "url": "git://github.com/xavierraffin/photomanager.git"
   },
   "dependencies": {
+    "angular": "^1.6.7",
     "graceful-fs": "^4.1.11",
     "md5": "^2.2.1",
     "typescript": "^2.6.2"
   },
   "devDependencies": {
+    "@angular/cli": "^1.6.0",
     "@types/node": "^8.0.54",
     "electron": "1.7.9",
     "node-sass": "^4.7.2"
