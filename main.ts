@@ -1,4 +1,4 @@
-import { app, BrowserWindow, screen } from 'electron';
+import { app, BrowserWindow, screen, ipcMain } from 'electron';
 import * as path from 'path';
 
 let win, serve;
@@ -62,6 +62,11 @@ try {
     if (win === null) {
       createWindow();
     }
+  });
+
+  ipcMain.on('set:storage', function (){
+    console.log("event !!!");
+    app.quit();
   });
 
 } catch (e) {

@@ -61,6 +61,7 @@
     "@types/core-js": "0.9.36",
     "@types/jasmine": "2.5.54",
     "@types/jasminewd2": "2.0.2",
+    "@types/md5": "^2.1.32",
     "@types/node": "7.0.7",
     "autoprefixer": "7.1.4",
     "circular-dependency-plugin": "3.0.0",
