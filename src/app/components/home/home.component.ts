@@ -1,6 +1,7 @@
 import { Component, OnInit } from '@angular/core';
 import { ElectronService } from '../../providers/electron.service';
 import { StorageService } from '../../providers/storage.service';
+import { StorageInfo_IPC } from '../../model/Storage';
 
 @Component({
   selector: 'app-home',

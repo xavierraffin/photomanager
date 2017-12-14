@@ -69,6 +69,9 @@ const styles = [
 
 //we add all our external scripts we want to load externally, like inserting in our index.html --> like as if it's .angular-cli.json
 const scripts = [
+  "./src/style/loadjquery.js",
+  "./src/lib/materialize/js/materialbox.js"
+  //"./src/style/custom.js"
 ];
 
 //create file path for each , so we use for our excludes and includes where needed
@@ -261,7 +264,8 @@ module.exports = {
     "string_decoder": "require('string_decoder')",
     "url": "require('url')",
     "util": "require('util')",
-    "zlib": "require('zlib')"
+    "zlib": "require('zlib')",
+    "jquery": "require('jquery')"
   },
   "resolve": {
     "extensions": [
