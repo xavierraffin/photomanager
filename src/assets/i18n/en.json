@@ -1,8 +1,0 @@
-{
-  "PAGES": {
-      "HOME": {
-          "TITLE": "PhotoManager",
-          "STORAGE_SELECT_BUTTON": "Select your storage folder"
-      }
-  }
-}
