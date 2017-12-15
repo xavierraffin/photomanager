@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "description": "PhotoManager is a Desktop app to manage photos",
-  "homepage": "https://github.com/xavierraffin/photomanager",
+  "homepage": "./",
   "license": "GPL-3.0",
   "author": {
     "name": "Xavier RAFFIN",
@@ -25,7 +25,6 @@
     "react": "^16.1.1",
     "react-dom": "^16.1.1"
   },
-  "homepage": "./",
   "main": "src/electron-starter.js",
   "scripts": {
     "start": "react-scripts start",

@@ -4,6 +4,13 @@ PhotoManager is a simple personal photo manager for your desktop. (Windows/Mac/L
 
 ## Development commands
 
+Installation:
+```
+git clone git@github.com:xavierraffin/photomanager.git
+cd
+npm Install
+```
+
 To start electron listening http://localhost:3000 :
 ```npm run dev```
 
@@ -11,7 +18,7 @@ To start only react on http://localhost:3000 :
 
 ```npm start```
 
-Build electron app from production with static assets :
+Build electron app from production with static assets:
 
 ```npm run build```
 
