@@ -1,4 +1,35 @@
 const electron = require('electron');
+const Store = require('./utils/Store');
+const LOG = require('./utils/Logger');
+
+var logger = new LOG.Logger(LOG.LEVEL.DEBUG);
+// SET ENV
+process.env.ELECTRON_ENABLE_STACK_DUMPING = 'true';
+process.env.ELECTRON_ENABLE_LOGGING = 'true';
+/*
+ * This setting determines how many thread libuv will create for fs operations
+ * From 4 to 128
+ */
+process.env.UV_THREADPOOL_SIZE = "16";
+logger.log(LOG.LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
+
+const store = new Store({
+  "options" : {
+   "deleteOriginal" : false,
+   "tags" : {
+     "createFromDirName" : true,
+     "numberOfDirDepth" : 2
+   },
+   "photoAcceptanceCriteria" : {
+     "fileSizeInBytes" : "15000",
+     "minHeight" : "300",
+     "minWidth" : "300",
+     "hasExifDate" : false,
+   },
+   "storageDir": ""
+ }
+});
+
 // Module to control application life.
 const app = electron.app;
 // Module to create native browser window.
