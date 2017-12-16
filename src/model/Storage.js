@@ -2,62 +2,58 @@
     This file is part of PhotoManager.
 
     PhotoManager is free software: you can redistribute it and/or modify
-    it under the terms of the GNU General Public License as published by
+    it under the terms of the GNU General License as published by
     the Free Software Foundation, either version 3 of the License, or
     (at your option) any later version.
 
     PhotoManager is distributed in the hope that it will be useful,
     but WITHOUT ANY WARRANTY; without even the implied warranty of
     MERCHANTABILITY or FITNESS FOR A PARTICULAR PURPOSE.  See the
-    GNU General Public License for more details.
+    GNU General License for more details.
 
-    You should have received a copy of the GNU General Public License
+    You should have received a copy of the GNU General License
     along with Foobar.  If not, see <http://www.gnu.org/licenses/>.
 
     Xavier Raffin - 2017
  */
 
-import * as path from 'path';
-import * as md5 from 'md5';
-import * as fs from 'fs';
+const path = require('path');
+const md5 = require('md5');
+const fs = require('fs');
 
-import { PhotoInfo_IPC, getNameFromFileName, getIPCPhotoDate } from "./Photo";
-import { GlobalStats } from "./Statistics";
-import { JpegParser, JpegResult } from "../utils/JpegParser";
-import { StepLauncher, stepFunction } from "../schedulers/StepLauncher";
-import { TaskExecutor, Task } from "../schedulers/TaskExecutor";
-import { Logger, LOG_LEVEL } from "../utils/Logger";
-import { formatDateSafe, dateFromExif } from "../utils/DateTime";
-import { isPhoto, createDirIfNotExist } from "../utils/FileSystem";
+const { PhotoInfo_IPC, getNameFromFileName } = require("./Photo");
+const { GlobalStats } = require("./Statistics");
+const { JpegParser, JpegResult } = require("../utils/JpegParser");
+const { StepLauncher, stepFunction } = require("../schedulers/StepLauncher");
+const { TaskExecutor, Task } = require("../schedulers/TaskExecutor");
+const { Logger, LOG_LEVEL } = require('../utils/Logger');
+const DateTime = require("../utils/DateTime");
+const { isPhoto, createDirIfNotExist } = require("../utils/FileSystem");
 
-var logger: Logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
+var logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
 
 // This super compact class is used to exchange data
 // Between Electron main process and renderer process
-export class StorageInfo_IPC {
-  photosNbr: number = 0;
-  years: number[] = [];
-  tags: string[] = [];
-  dir: string = "";
-  chunck: PhotoInfo_IPC[] = [];
+exports.StorageInfo_IPC = class StorageInfo_IPC {
+  constructor() {
+    this.photosNbr = 0;
+    this.years = [];
+    this.tags = [];
+    this.dir = "";
+    this.chunck = [];
+  }
 }
 
 class Metadata {
-  public weakDateMd5: { [md5: string] : string; } = {};
-  public global_stats: GlobalStats = new GlobalStats();
-  [key: string]: any;
+  constructor() {
+    this.weakDateMd5 = {};
+    this.global_stats = new GlobalStats();
+  }
 }
 
-export class Storage {
-  private storageInfo: StorageInfo_IPC;
-  private executor: TaskExecutor;
-  private stepLauncher: StepLauncher;
-  private metadata: Metadata;
-  private tags: { [tagName: string] : string[]; };
-  private options: any;
-  private loadCallback: (StorageInfo_IPC) => void;
+exports.Storage = class Storage {
 
-  constructor (options: any) {
+  constructor (options) {
     this.stepLauncher = new StepLauncher();
     this.executor = new TaskExecutor(20, this.stepLauncher);
     this.storageInfo = new StorageInfo_IPC();
@@ -65,13 +61,14 @@ export class Storage {
     this.metadata = new Metadata();
     this.tags = {};
     this.options = options;
+    this.loadCallback = null;
   }
 
-  public getInfo_IPC(): StorageInfo_IPC {
+  getInfo_IPC() {
     return this.storageInfo;
   }
 
-  public load(callback: (StorageInfo_IPC) => void): void {
+  load(callback) {
     this.loadCallback = callback;
 
     this.stepLauncher.addStep("loadMetadata", this);
@@ -82,20 +79,22 @@ export class Storage {
     this.stepLauncher.start();
   }
 
-  private callLoadCallback() {
-    this.loadCallback(this.storageInfo);
-  }
-
-  public startExecutor(){
+  startExecutor(){
     this.executor.start();
   }
 
-  private loadMetadata(): void {
+  /********** 'private' methods ************/
+
+  callLoadCallback() {
+    this.loadCallback(this.storageInfo);
+  }
+
+  loadMetadata() {
     logger.log(LOG_LEVEL.DEBUG, "Loading metadata from %s", this.storageInfo.dir);
     this.loadTags("TAGS");
-    var needRescanStats: boolean = this.loadObjectFromFile(".do-not-delete-stat.js", this.metadata["global_stats"]);
-    var needRescanIPC: boolean = this.loadObjectFromFile(".do-not-delete-storageIPC.js", this.storageInfo);
-    var needRescanMd5: boolean = false;
+    var needRescanStats = this.loadObjectFromFile(".do-not-delete-stat.js", this.metadata["global_stats"]);
+    var needRescanIPC = this.loadObjectFromFile(".do-not-delete-storageIPC.js", this.storageInfo);
+    var needRescanMd5 = false;
     if(!this.options.photoAcceptanceCriteria.hasExifDate) {
       needRescanMd5 = this.loadObjectFromFile(".do-not-delete-md5.js", this.metadata["global_stats"]);
     }
@@ -105,10 +104,10 @@ export class Storage {
     }
   }
 
-  private loadTags(tagfolder: string): void {
+  loadTags(tagfolder) {
     if(this.options.tags.createFromDirName) {
-      const tagfolderPath: string = path.join(this.storageInfo.dir, tagfolder);
-      fs.exists(tagfolderPath, (function (exists: boolean) {
+      const tagfolderPath = path.join(this.storageInfo.dir, tagfolder);
+      fs.exists(tagfolderPath, (function (exists) {
         if(!exists){
           logger.log(LOG_LEVEL.INFO, "Create tag folder %s", tagfolderPath);
           createDirIfNotExist(tagfolderPath);
@@ -119,13 +118,13 @@ export class Storage {
     }
   }
 
-  private loadObjectFromFile(fileName: string, data: any) : boolean {
+  loadObjectFromFile(fileName, data)  {
     const metadataFile = path.join(this.storageInfo.dir, fileName);
     try {
-      var json_string: string = fs.readFileSync(metadataFile).toString();
+      var json_string = fs.readFileSync(metadataFile).toString();
       logger.log(LOG_LEVEL.INFO, "Load metadata file %s", metadataFile);
       try {
-        (<any>Object).assign(data, JSON.parse(json_string));
+        Object.assign(data, JSON.parse(json_string));
       } catch(e) {
         logger.log(LOG_LEVEL.WARNING, "Metadata file %s is corrupted delete it and recreate: error=%s", fileName, e);
         fs.unlinkSync(metadataFile);
@@ -138,11 +137,11 @@ export class Storage {
   }
 
 
-  private saveMetadataFile(fileName: string, data: any): void {
-    const metadataFile: string = path.join(this.storageInfo.dir, fileName);
-    var json_string: string = JSON.stringify(data);
-    this.stepLauncher.takeMutex();;
-    fs.writeFile(metadataFile, json_string , (function(err: any){
+  saveMetadataFile(fileName, data) {
+    const metadataFile = path.join(this.storageInfo.dir, fileName);
+    var json_string = JSON.stringify(data);
+    this.stepLauncher.takeMutex();
+    fs.writeFile(metadataFile, json_string , (function(err){
       if(err) {
          logger.log(LOG_LEVEL.ERROR, "error saving metadata %s", metadataFile);
       } else {
@@ -152,24 +151,24 @@ export class Storage {
     }).bind(this));
   }
 
-  private saveTagFiles(tagFolder: string): void {
-    const tagPath: string = path.join(this.storageInfo.dir, tagFolder);
+  saveTagFiles(tagFolder) {
+    const tagPath = path.join(this.storageInfo.dir, tagFolder);
     for (var tagName in this.tags) {
       this.stepLauncher.takeMutex();
-      const tagFile: string = path.join(tagPath, tagName);
-      var json_string: string = JSON.stringify(this.tags[tagName]);
-      fs.writeFile(tagFile, json_string , (function(err: any){
+      const tagFile = path.join(tagPath, tagName);
+      var json_string = JSON.stringify(this.tags[tagName]);
+      fs.writeFile(tagFile, json_string , (function(err){
         if(err) {
            logger.log(LOG_LEVEL.ERROR, "error saving tag file %s", tagFile);
         } else {
            logger.log(LOG_LEVEL.INFO, "tag file %s saved", tagFile);
         }
-        this.stepLauncher.releaseMutex();;
+        this.stepLauncher.releaseMutex();
       }).bind(this));
     }
   }
 
-  private saveMetadata(): void {
+  saveMetadata() {
     this.saveMetadataFile(".do-not-delete-stat.js", this.metadata["global_stats"]);
     this.saveMetadataFile(".do-not-delete-storageIPC.js", this.storageInfo);
     if(!this.options.photoAcceptanceCriteria.hasExifDate) {
@@ -181,9 +180,9 @@ export class Storage {
   }
 
 
-  private scanTagDir(folder: string): void {
+  scanTagDir(folder) {
     this.stepLauncher.takeMutex();
-    fs.readdir(folder, (err: any, files: string[]) => {
+    fs.readdir(folder, (err, files) => {
       if (err) {
         logger.log(LOG_LEVEL.WARNING, "Unable to read TAG directory %s", folder);
         this.stepLauncher.releaseMutex();
@@ -192,21 +191,23 @@ export class Storage {
       logger.log(LOG_LEVEL.INFO, "Load TAGS from %s", folder);
 
       files.forEach(tagName => {
-        var file: string = path.join(folder, tagName);
+        var file = path.join(folder, tagName);
         this.stepLauncher.takeMutex();
-        fs.lstat(file, (function (err: any, fileStat: any) {
+        fs.lstat(file, (function (err, fileStat) {
           if(!err){
             if(fileStat.isFile()){
               this.stepLauncher.takeMutex();
               logger.log(LOG_LEVEL.INFO, "Load TAG %s",file);
-              fs.readFile(file, (function(err: any, buf: string) {
+              fs.readFile(file, (function(err, buf) {
                  if(err){
                    logger.log(LOG_LEVEL.ERROR, "Unable to read TAG file %s",file);
                    this.stepLauncher.releaseMutex();
                    return;
                  }
-                 this.tags[tagName] = [];
-                 (<any>Object).assign(this.tags[tagName], JSON.parse(buf));
+                 //this.tags[tagName] = [];
+                 //Object.assign(this.tags[tagName], JSON.parse(buf));
+                 this.tags[tagName] = JSON.parse(buf);
+
                  this.stepLauncher.releaseMutex();
                }).bind(this));
              }
@@ -218,9 +219,9 @@ export class Storage {
     });
   }
 
-  private scanStorageDir(folder: string, needRescanStats: boolean, needRescanMd5: boolean, needRescanIPC: boolean): void {
+  scanStorageDir(folder, needRescanStats, needRescanMd5, needRescanIPC) {
     this.stepLauncher.takeMutex();
-    fs.readdir(folder, ((err: any, files: string[]) => {
+    fs.readdir(folder, ((err, files) => {
       if (err) {
         logger.log(LOG_LEVEL.ERROR, "Unable to read directory %s", folder);
         this.stepLauncher.releaseMutex();
@@ -232,11 +233,11 @@ export class Storage {
       }).forEach(file => {
          try{
            this.stepLauncher.takeMutex();
-           fs.lstat(file, ((err: any, fileStat: any) => {
+           fs.lstat(file, ((err, fileStat) => {
            if(!err) {
              if(fileStat.isFile()){
                if(isPhoto(file)){
-                 var imageSize: number = fileStat["size"];
+                 var imageSize = fileStat["size"];
                  this.executor.queueTask(this,
                                          "scanFile",
                                          folder,
@@ -261,23 +262,23 @@ export class Storage {
     }).bind(this));
   }
 
-  private scanFile(folder: string,
-                   needRescanStats: boolean,
-                   needRescanMd5: boolean,
-                   needRescanIPC: boolean,
-                   file: string,
-                   fileSystemDate: Date,
-                   imageSize: number
-                 ) {
+  scanFile(folder,
+           needRescanStats,
+           needRescanMd5,
+           needRescanIPC,
+           file,
+           fileSystemDate,
+           imageSize
+         ) {
     logger.log(LOG_LEVEL.DEBUG, "Scan file %s", folder);
     this.executor.taskExecutionStart();
     this.stepLauncher.takeMutex();
-    fs.readFile(file, (function(err: any, buffer: Buffer) {
+    fs.readFile(file, (function(err, buffer) {
        if(!err){
-        var jpegParser: JpegParser = new JpegParser(this.options, file)
-        var photoAttributes: JpegResult = jpegParser.parse(buffer);
+        var jpegParser = new JpegParser(this.options, file)
+        var photoAttributes = jpegParser.parse(buffer);
 
-        const photoDate: Date = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
+        const photoDate = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
         if(needRescanStats) {
           this.addGlobalStats(photoDate, photoAttributes.hasExifDate);
         }
@@ -288,7 +289,7 @@ export class Storage {
                            imageSize);
         }
         if(!photoAttributes.hasExifDate && needRescanMd5) {
-          const photoMD5: string = md5(buffer);
+          const photoMD5 = md5(buffer);
           this.storeMd5(file, photoMD5);
         }
       } else {
@@ -299,18 +300,18 @@ export class Storage {
     }).bind(this));
   }
 
-  private addPhotoIPC(height: number, width: number, file: string, size: number){
+  addPhotoIPC(height, width, file, size){
     logger.log(LOG_LEVEL.DEBUG, "addPhotoIPC %s", file);
-    var newPhoto: PhotoInfo_IPC = {
-      "w": width,
-      "h": height,
-      "s": Math.floor(size/1000), // Convert in ko
-      "n": getNameFromFileName(file),
-      "t": []
-    }
+    var newPhoto = new PhotoInfo_IPC(
+      width,
+      height,
+      Math.floor(size/1000), // Convert in ko
+      getNameFromFileName(file),
+      []
+    );
     this.storageInfo.photosNbr++;
     logger.log(LOG_LEVEL.DEBUG, "photosNbr=%s, n=%s", this.storageInfo.photosNbr, newPhoto.n);
-    var year: number = getIPCPhotoDate(newPhoto.n).getFullYear();
+    var year = getIPCPhotoDate(newPhoto.n).getFullYear();
     if( typeof this.storageInfo.years [year] == 'undefined' ) {
       logger.log(LOG_LEVEL.DEBUG, "Add year %s", year);
       this.storageInfo.years.push(year);
@@ -318,11 +319,11 @@ export class Storage {
     this.storageInfo.chunck.push(newPhoto);
   }
 
-  private addGlobalStats(photoDate: Date, dateCanBeTrusted: boolean){
+  addGlobalStats(photoDate, dateCanBeTrusted){
     this.metadata.global_stats.increment(photoDate, dateCanBeTrusted);
   }
 
-  private storeMd5(file: string, photoMD5: string){
+  storeMd5(file, photoMD5){
     if(typeof this.metadata["weakDateMd5"][photoMD5] == 'undefined') {
       this.metadata["weakDateMd5"][photoMD5] = file;
       logger.log(LOG_LEVEL.DEBUG, "New scan result weakDateMd5[%s] = %s",

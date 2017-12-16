@@ -1,39 +1,43 @@
-import { Logger, LOG_LEVEL } from "../utils/Logger";
-var logger: Logger = new Logger(LOG_LEVEL.INFO);
+const { Logger, LOG_LEVEL } = require('../utils/Logger');
+var logger = new Logger(LOG_LEVEL.INFO);
 
-export interface stepFunction {
-  methodName: string;
-  object: any;
-};
+// Steps must be like this (Typescript syntax)
+// interface stepFunction {
+//    methodName: string;
+//    object: any;
+// };
 
-export class StepLauncher {
-  private steps: stepFunction[] = [];
-  private numberOfSteps = 0;
-  private mutex = 0;
+exports = class StepLauncher {
 
-  public addStep(step: string, object: any) : void {
+  constructor() {
+     this.steps= [];
+     this.numberOfSteps = 0;
+     this.mutex = 0;
+  }
+
+  addStep(step, object) {
     this.steps.push({ "methodName" : step, "object" : object});
     this.numberOfSteps++;
   }
 
-  public takeMutex(){this.mutex++};
-  public releaseMutex(){this.mutex--};
+  takeMutex(){this.mutex++};
+  releaseMutex(){this.mutex--};
 
-  private static runstep(stepNumber: number, instance: StepLauncher) {
-    if(stepNumber >= instance.numberOfSteps) {
+  runstep(stepNumber) {
+    if(stepNumber >= this.numberOfSteps) {
       return;
     }
-    if(instance.mutex == 0){
+    if(this.mutex == 0){
       logger.log(LOG_LEVEL.INFO, "============ START STEP %s ============", stepNumber);
-      instance.steps[stepNumber].object[instance.steps[stepNumber].methodName]();
-      StepLauncher.runstep(stepNumber + 1, instance);
+      this.steps[stepNumber].object[this.steps[stepNumber].methodName]();
+      this.runstep(stepNumber + 1, this);
     } else {
-      logger.log(LOG_LEVEL.DEBUG, "Mutex = %s wait 500ms", instance.mutex);
-      setTimeout(function () {StepLauncher.runstep(stepNumber, instance);}, 500);
+      logger.log(LOG_LEVEL.DEBUG, "Mutex = %s wait 500ms", this.mutex);
+      setTimeout(this.runstep.bind(this, stepNumber), 500);
     }
   }
 
-  public start() : void {
-    StepLauncher.runstep(0, this);
+  start() {
+    this.runstep(0);
   }
 }

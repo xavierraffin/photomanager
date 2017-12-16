@@ -1,36 +1,36 @@
-import { Logger, LOG_LEVEL } from "../utils/Logger";
-var logger: Logger = new Logger(LOG_LEVEL.INFO);
+const { Logger, LOG_LEVEL } = require ("../utils/Logger");
+var logger = new Logger(LOG_LEVEL.INFO);
 
 
-export class JpegResult {
-  public matchOptionsConditions: boolean;
-  public hasExifDate: boolean = false;
-  public isValidJpeg: boolean = false;
-  public height: Number = 0;
-  public width: Number = 0;
-  public exifDate: string;
+exports.JpegResult = class JpegResult {
+  constructor() {
+    this.matchOptionsConditions = false;
+    this.hasExifDate = false;
+    this.isValidJpeg = false;
+    this.height = 0;
+    this.width = 0;
+    this.exifDate = null;
+  }
 };
 
-export class JpegParser {
+exports.JpegParser = class JpegParser {
 
-  private result: JpegResult;
-  private options: any;
-  private fileName: string;
-
-  constructor(options: any, fileName: string) {
+  constructor(options, fileName) {
     this.result = new JpegResult();
     this.options = options;
     this.fileName = fileName;
   }
 
-  public parse(buffer: Buffer) : JpegResult {
+  parse(buffer)  {
     this.extractData(buffer);
     this.validateOptions();
     logger.log(LOG_LEVEL.DEBUG, "Result %s", JSON.stringify(this.result));
     return this.result;
   }
 
-  private validateOptions() : void {
+  /********** 'private' methods ************/
+
+  validateOptions()  {
     this.result.matchOptionsConditions = false;
     if(this.result.isValidJpeg)
     {
@@ -49,13 +49,13 @@ export class JpegParser {
       }
   }
 
-  private extractSize (buffer: Buffer, i: number) : any {
+  extractSize (buffer, i)  {
     this.result.height = buffer.readUInt16BE(i);
     this.result.width = buffer.readUInt16BE(i + 2);
     logger.log(LOG_LEVEL.DEBUG, "File size is %sx%s", this.result.width, this.result.height);
   }
 
-  private isJpegValid(buffer: Buffer, i: number) : boolean {
+  isJpegValid(buffer, i)  {
     // index should be within buffer limits
     if (i > buffer.length) {
       logger.log(LOG_LEVEL.WARNING, "File %s is not a corrupted JPG, exceeded buffer limits %s", this.fileName, i);
@@ -89,10 +89,10 @@ export class JpegParser {
    * Just after this comes the offset on 8 bytes (number of bytes from beginning start to beginning of DATA)
    * So because of this nature, all directory entry can be read 12 bytes per 12 bytes
    */
-  private extractExifInfo (buffer: Buffer, i: number) : JpegResult {
+  extractExifInfo (buffer, i)  {
 
-    var exifLabel: string = "";
-    for(var j: number = 0; j < 4 ; j++) {
+    var exifLabel = "";
+    for(var j = 0; j < 4 ; j++) {
        exifLabel += String.fromCharCode(buffer.readUInt8(i + j));
     }
 
@@ -102,8 +102,8 @@ export class JpegParser {
       return;
     }
     i += 6;
-    var endiannessMarker: number = buffer.readUInt16BE(i);
-    var isBigEndian: boolean;
+    var endiannessMarker = buffer.readUInt16BE(i);
+    var isBigEndian;
     var offsetStart = i;
 
     if(endiannessMarker == 0x4D4D) { // MM = Motorola = big endian
@@ -119,7 +119,7 @@ export class JpegParser {
     i += 4;
 
     // Read IFD offest (usually 0x08)
-    var IFDoffest: number = isBigEndian ? buffer.readUInt32BE(i) : buffer.readUInt32LE(i);
+    var IFDoffest = isBigEndian ? buffer.readUInt32BE(i) : buffer.readUInt32LE(i);
     logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'IFDoffest = %s', IFDoffest);
 
     i = offsetStart + IFDoffest;
@@ -129,17 +129,17 @@ export class JpegParser {
     logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'IFD contains %s fields', numberOfFields);
 
     i+=2;
-    for(var j: number = 0; j < numberOfFields; j ++) {
-      var tagNumber: number = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
+    for(var j = 0; j < numberOfFields; j ++) {
+      var tagNumber = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
       logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'tagNumber = %s', tagNumber);
 
       if ((tagNumber === 306)||(tagNumber === 36867)) { // Tag for createDate IFD0 section see: https://sno.phy.queensu.ca/~phil/exiftool/TagNames/EXIF.html _ tag 36868 seems not relevant
         this.result.hasExifDate = true;
 
-        var createDateDataOffset: number = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
+        var createDateDataOffset = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
         this.result.exifDate = "";
         i = offsetStart + createDateDataOffset;
-        for(var j: number = 0; j < 19 ; j++) {
+        for(var j = 0; j < 19 ; j++) {
           this.result.exifDate += String.fromCharCode(buffer.readUInt8(i + j));
         }
         logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'this.result.exifDate = %s', this.result.exifDate);
@@ -147,7 +147,7 @@ export class JpegParser {
       }
 
       if (tagNumber === 34665) { // Tag for exif offset
-        var exifIFDOffset: number = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
+        var exifIFDOffset = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
         i = offsetStart + exifIFDOffset;
         numberOfFields = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
         i += 2;
@@ -162,7 +162,7 @@ export class JpegParser {
     }
   }
 
-  private extractData (buffer: Buffer) : void {
+  extractData (buffer)  {
 
     logger.log(LOG_LEVEL.DEBUG, "Start extract JPEG Data from %s", this.fileName);
 
@@ -171,7 +171,7 @@ export class JpegParser {
 
     while (buffer.length) {
 
-      var i: number = 0;
+      var i = 0;
 
       // ensure correct format
       if(!this.isJpegValid(buffer, i)) {

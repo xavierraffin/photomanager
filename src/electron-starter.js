@@ -2,9 +2,10 @@ const electron = require('electron');
 const path = require('path');
 const url = require('url');
 const Store = require('./utils/Store');
-const LOG = require('./utils/Logger');
+const { Logger, LOG_LEVEL } = require('./utils/Logger');
+const { StorageInfo_IPC, Storage } = require('./model/Storage');
 
-var logger = new LOG.Logger(LOG.LEVEL.DEBUG);
+var logger = new Logger(LOG_LEVEL.DEBUG);
 // SET ENV
 process.env.ELECTRON_ENABLE_STACK_DUMPING = 'true';
 process.env.ELECTRON_ENABLE_LOGGING = 'true';
@@ -13,7 +14,7 @@ process.env.ELECTRON_ENABLE_LOGGING = 'true';
  * From 4 to 128
  */
 process.env.UV_THREADPOOL_SIZE = "16";
-logger.log(LOG.LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
+logger.log(LOG_LEVEL.INFO, "UV_THREADPOOL_SIZE=%s",  process.env.UV_THREADPOOL_SIZE);
 
 const store = new Store({
   "options" : {

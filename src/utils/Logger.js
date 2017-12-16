@@ -1,6 +1,6 @@
 const datetime = require('./DateTime');
 
-LEVEL = {
+LOG_LEVEL = {
   VERBOSE_DEBUG : 0,
   DEBUG : 1,
   INFO : 2,
@@ -8,9 +8,9 @@ LEVEL = {
   ERROR : 4,
   NO_LOG : 5
 };
-LOG_LEVEL = Object.keys(LEVEL);
+LOG_LEVEL_NAME = Object.keys(LOG_LEVEL);
 
-exports.LEVEL = LEVEL;
+exports.LOG_LEVEL = LOG_LEVEL;
 
 exports.Logger = class Logger {
   constructor(level)
@@ -22,7 +22,7 @@ exports.Logger = class Logger {
     var level = args[0];
     if(level >= this.logLevel) {
       args[0] = datetime.formatDate(new Date()) + " [%s] - " + args[1];
-      args[1] = LOG_LEVEL[level];
+      args[1] = LOG_LEVEL_NAME[level];
       console.log.apply(console, args);
     }
   }

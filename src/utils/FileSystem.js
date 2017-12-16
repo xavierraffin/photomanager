@@ -1,12 +1,11 @@
-import * as path from 'path';
-import * as fs from 'fs';
+const path = require('path');
+const fs = require('fs');
 
-import { Logger, LOG_LEVEL } from "../utils/Logger";
+const { Logger, LOG_LEVEL } = require("../utils/Logger");
+var logger = new Logger(LOG_LEVEL.INFO);
 
-var logger: Logger = new Logger(LOG_LEVEL.INFO);
-
-export function createDirIfNotExist(dirPath: string): void {
-  var dirExist: boolean = false;
+exports.createDirIfNotExist = function (dirPath) {
+  var dirExist = false;
   try {
     fs.mkdirSync(dirPath);
   } catch (err) {
@@ -19,8 +18,8 @@ export function createDirIfNotExist(dirPath: string): void {
     logger.log(LOG_LEVEL.INFO, "Create directory %s ", dirPath);
 }
 
-export function isPhoto(file: string) : boolean {
-  const extension: string = path.extname(file);
+exports.isPhoto = function(file)  {
+  const extension = path.extname(file);
   if((extension == ".jpg") || (extension == ".jpeg") || (extension == ".JPG") || (extension == ".JPEG"))
   {
     return true;

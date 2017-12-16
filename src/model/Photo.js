@@ -1,25 +1,25 @@
-import { datefromSafeFormat } from "../utils/DateTime";
+const datefromSafeFormat = require("../utils/DateTime");
 
-// This super compact class is used to exchange data
-// Between Electron main process and renderer process
-export class PhotoInfo_IPC {
-  w: number; // width px
-  h: number; // height px
-  s: number; // size ko
-  n: string; // file name
-  t: string[]; //tags
+exports.PhotoInfo_IPC = class PhotoInfo_IPC {
+  constructor(width, height, size, name, tags) {
+    this.w = width;
+    this.h = height;
+    this.s = size;
+    this.n = name;
+    this.t = tags;
+  }
 }
 
-export function getIPCPhotoDate(IPCname: string): Date {
+exports.getIPCPhotoDate = function(IPCname) {
   return datefromSafeFormat(IPCname.substr(0, 18));
 }
 
-export function getIPCPhotoPath(IPCname: string): string {
+exports.getIPCPhotoPath = function(IPCname) {
   return "/" + IPCname.substr(0, 4) +
          "/" + IPCname.substr(5, 2).replace('-','/') +
          "/" + IPCname + ".jpg"
 }
 
-export function getNameFromFileName(fileName: string): string {
+exports.getNameFromFileName = function(fileName) {
   return fileName.substr(0, fileName.length - 4); // delete .jpg
 }
