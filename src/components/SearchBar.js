@@ -1,12 +1,14 @@
 import React, { Component } from 'react';
-//import { Grid, Navbar, Row, Col } from 'react-bootstrap';
+import { Well } from 'react-bootstrap';
 import './SearchBar.css';
 
 class SearchBar extends Component {
   render() {
     return (
       <div className="searchbar">
-        SearchBar
+        <Well className="searchWell">
+          Sea rc hBar
+        </Well>
       </div>
     );
   }

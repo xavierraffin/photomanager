@@ -1,0 +1,15 @@
+.footer {
+  background-color: #F5F5F5;
+  bottom: 0;
+  position: fixed;
+  width: 100%;
+}
+
+div.importProgressBar {
+  margin: 5px;
+  height: 10px;
+}
+
+.footerGrid {
+  padding: 0 5px 0 5px;
+}

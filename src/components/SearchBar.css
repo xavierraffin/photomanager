@@ -1,7 +1,13 @@
 .searchbar {
-  background-color: green;
+  background-color: #FFF;
   height: 100%;
   position: fixed;
   top: 50px;
   width: 250px;
+  padding-bottom: 80px;
+}
+
+.searchWell {
+ height: 100%;
+ margin: 5px 5px 15px 5px;
 }
