@@ -5,9 +5,9 @@
 .photoCell {
   background-color: red;
   height: 30px;
-  width: 30px;
   position: absolute;
   top: 10px;
+  width: 30px;
 }
 
 div.photoBox {
