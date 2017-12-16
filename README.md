@@ -22,6 +22,10 @@ Build electron app from production with static assets:
 
 ```npm run build```
 
+If foreman process is still listen 3000 and you want to kill it:
+On Mac:
+```lsof -n -i:3000 | grep LISTEN```
+
 ## Hall of fame
 
 Thanks to [csepulv](https://github.com/csepulv) for inspiring setup from https://github.com/csepulv/electron-with-create-react-app

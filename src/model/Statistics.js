@@ -31,7 +31,7 @@ class GlobalStats extends BaseStats {
     BaseStats.increment(this, hasexif);
     // Increment specific year
     var year = photoDate.getFullYear();
-    if(typeof this.byYear[year] == 'undefined') {
+    if(typeof this.byYear[year] === 'undefined') {
       this.byYear[year] = new BaseStats();
     }
     BaseStats.increment(this.byYear[year], hasexif);
@@ -52,7 +52,7 @@ exports.GlobalStats = GlobalStats;
 exports.ImportStats = class ImportStats extends GlobalStats {
   constructor(){
     super();
-    duplicates = 0;
+    this.duplicates = 0;
   }
 
   displayStats(){

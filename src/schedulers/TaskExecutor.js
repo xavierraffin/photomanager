@@ -14,9 +14,7 @@ class Task {
   }
 };
 
-exports = class TaskExecutor {
-
-  constructor(maxNumber, stepLauncher) {
+exports.TaskExecutor = function (maxNumber, stepLauncher) {
     logger.log(LOG_LEVEL.DEBUG, "Executor created, max parrallel tasks = %s", maxNumber);
     this.taskQueue = [];
     this.numberOfrunningTasks = 0;
@@ -24,9 +22,8 @@ exports = class TaskExecutor {
     this.stepLauncher = stepLauncher;
     this.finishedTasks = 0;
     this.initialTaskNumber = 0;
-  }
 
-  queueTask(...args) {
+  this.queueTask = function(...args) {
     var callbackObj = args[0];
     var callbackName = args[1];
     args.shift();
@@ -34,21 +31,21 @@ exports = class TaskExecutor {
     var task = new Task(callbackObj, callbackName, args);
     this.taskQueue.push(task);
   }
-  popNextTask() {
+  this.popNextTask = function() {
     return this.taskQueue.shift();
   }
 
-  taskExecutionStart() {
+  this.taskExecutionStart = function() {
     this.numberOfrunningTasks++;
     logger.log(LOG_LEVEL.DEBUG, "New running task: total = %s", this.numberOfrunningTasks);
   }
-  taskExecutionFinish() {
+  this.taskExecutionFinish = function() {
     this.numberOfrunningTasks--;
     this.finishedTasks++;
     logger.log(LOG_LEVEL.DEBUG, "Running task finished: total = %s", this.numberOfrunningTasks);
   }
 
-  start() {
+  this.start = function() {
     this.stepLauncher.takeMutex();
     this.initialTaskNumber = this.taskQueue.length;
     this.finishedTasks = 0;
@@ -61,7 +58,7 @@ exports = class TaskExecutor {
     }
   }
 
-  eventLoopInjection() {
+  this.eventLoopInjection = function() {
     logger.log(LOG_LEVEL.DEBUG, "eventLoopInjection called");
     logger.log(LOG_LEVEL.INFO, "Task completion = %s%, (%s/%s), running tasks = %s",
                                 (this.finishedTasks/this.initialTaskNumber)*100,

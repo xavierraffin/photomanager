@@ -1,6 +1,6 @@
 const datetime = require('./DateTime');
 
-LOG_LEVEL = {
+var LOG_LEVEL = {
   VERBOSE_DEBUG : 0,
   DEBUG : 1,
   INFO : 2,
@@ -8,7 +8,7 @@ LOG_LEVEL = {
   ERROR : 4,
   NO_LOG : 5
 };
-LOG_LEVEL_NAME = Object.keys(LOG_LEVEL);
+let LOG_LEVEL_NAME = Object.keys(LOG_LEVEL);
 
 exports.LOG_LEVEL = LOG_LEVEL;
 

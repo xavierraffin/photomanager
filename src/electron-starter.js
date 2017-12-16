@@ -110,7 +110,7 @@ function createWindow() {
     mainWindow.once('ready-to-show', function(){
       if(options.storageDir != "") {
         mainWindow.webContents.send('storage:selected', options.storageDir);
-        //loadStorage(options);
+        loadStorage(options);
       }
       mainWindow.show();
     });
@@ -130,7 +130,7 @@ function storageLoaded(storageInfo) {
   logger.log(LOG_LEVEL.INFO, "Storage is loaded, numberOfPhotos = %s", storageInfo.photosNbr);
   if(isLoadedEventWaited) {
     logger.log(LOG_LEVEL.DEBUG, "Storage was waited: send it");
-    win.webContents.send('storage:loaded', storage.getInfo_IPC());
+    mainWindow.webContents.send('storage:loaded', storageInfo);
     isLoadedEventWaited = false;
   }
 }
@@ -154,7 +154,7 @@ app.on('activate', function () {
     if(options.storageDir != "") {
       if(isStorageInfoLoaded) {
         logger.log(LOG_LEVEL.DEBUG, "Storage is ready: send it");
-        win.webContents.send('storage:loaded', storage.getInfo_IPC());
+        mainWindow.webContents.send('storage:loaded', storage.getInfo_IPC());
       } else {
         logger.log(LOG_LEVEL.DEBUG, "Storage is not ready: wait for it");
         isLoadedEventWaited = true; // Then the event will be sent when ready
@@ -169,7 +169,7 @@ app.on('activate', function () {
       logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder[0]);
       options.storageDir = folder[0];
       store.set('options', options);
-      win.webContents.send('storage:selected', folder[0]);
+      mainWindow.webContents.send('storage:selected', folder[0]);
       loadStorage(options);
     })
   });
@@ -179,7 +179,7 @@ app.on('activate', function () {
       properties: ['openDirectory']
     }, function (folder){
       logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder[0]);
-      win.webContents.send('import:selected', folder[0]);
+      mainWindow.webContents.send('import:selected', folder[0]);
       var importer: Importer = new Importer(options);
       importer.importPhotos(folder[0]);
     })

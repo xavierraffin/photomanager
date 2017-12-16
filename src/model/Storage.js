@@ -27,14 +27,14 @@ const { JpegParser, JpegResult } = require("../utils/JpegParser");
 const { StepLauncher, stepFunction } = require("../schedulers/StepLauncher");
 const { TaskExecutor, Task } = require("../schedulers/TaskExecutor");
 const { Logger, LOG_LEVEL } = require('../utils/Logger');
-const DateTime = require("../utils/DateTime");
+const { dateFromExif, getIPCPhotoDate } = require("../utils/DateTime");
 const { isPhoto, createDirIfNotExist } = require("../utils/FileSystem");
 
 var logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
 
 // This super compact class is used to exchange data
 // Between Electron main process and renderer process
-exports.StorageInfo_IPC = class StorageInfo_IPC {
+class StorageInfo_IPC {
   constructor() {
     this.photosNbr = 0;
     this.years = [];
@@ -43,6 +43,7 @@ exports.StorageInfo_IPC = class StorageInfo_IPC {
     this.chunck = [];
   }
 }
+exports.StorageInfo_IPC = StorageInfo_IPC;
 
 class Metadata {
   constructor() {
@@ -51,24 +52,22 @@ class Metadata {
   }
 }
 
-exports.Storage = class Storage {
+exports.Storage = function (options) {
 
-  constructor (options) {
-    this.stepLauncher = new StepLauncher();
-    this.executor = new TaskExecutor(20, this.stepLauncher);
-    this.storageInfo = new StorageInfo_IPC();
-    this.storageInfo.dir = options.storageDir;
-    this.metadata = new Metadata();
-    this.tags = {};
-    this.options = options;
-    this.loadCallback = null;
-  }
+  this.stepLauncher = new StepLauncher();
+  this.executor = new TaskExecutor(20, this.stepLauncher);
+  this.storageInfo = new StorageInfo_IPC();
+  this.storageInfo.dir = options.storageDir;
+  this.metadata = new Metadata();
+  this.tags = {};
+  this.options = options;
+  this.loadCallback = null;
 
-  getInfo_IPC() {
+  this.getInfo_IPC = function() {
     return this.storageInfo;
   }
 
-  load(callback) {
+  this.load = function(callback) {
     this.loadCallback = callback;
 
     this.stepLauncher.addStep("loadMetadata", this);
@@ -79,17 +78,17 @@ exports.Storage = class Storage {
     this.stepLauncher.start();
   }
 
-  startExecutor(){
+  this.startExecutor = function() {
     this.executor.start();
   }
 
   /********** 'private' methods ************/
 
-  callLoadCallback() {
+  this.callLoadCallback = function() {
     this.loadCallback(this.storageInfo);
   }
 
-  loadMetadata() {
+  this.loadMetadata = function() {
     logger.log(LOG_LEVEL.DEBUG, "Loading metadata from %s", this.storageInfo.dir);
     this.loadTags("TAGS");
     var needRescanStats = this.loadObjectFromFile(".do-not-delete-stat.js", this.metadata["global_stats"]);
@@ -104,7 +103,7 @@ exports.Storage = class Storage {
     }
   }
 
-  loadTags(tagfolder) {
+  this.loadTags = function(tagfolder) {
     if(this.options.tags.createFromDirName) {
       const tagfolderPath = path.join(this.storageInfo.dir, tagfolder);
       fs.exists(tagfolderPath, (function (exists) {
@@ -118,7 +117,7 @@ exports.Storage = class Storage {
     }
   }
 
-  loadObjectFromFile(fileName, data)  {
+  this.loadObjectFromFile = function(fileName, data)  {
     const metadataFile = path.join(this.storageInfo.dir, fileName);
     try {
       var json_string = fs.readFileSync(metadataFile).toString();
@@ -137,7 +136,7 @@ exports.Storage = class Storage {
   }
 
 
-  saveMetadataFile(fileName, data) {
+  this.saveMetadataFile = function(fileName, data) {
     const metadataFile = path.join(this.storageInfo.dir, fileName);
     var json_string = JSON.stringify(data);
     this.stepLauncher.takeMutex();
@@ -151,7 +150,7 @@ exports.Storage = class Storage {
     }).bind(this));
   }
 
-  saveTagFiles(tagFolder) {
+  this.saveTagFiles = function(tagFolder) {
     const tagPath = path.join(this.storageInfo.dir, tagFolder);
     for (var tagName in this.tags) {
       this.stepLauncher.takeMutex();
@@ -168,7 +167,7 @@ exports.Storage = class Storage {
     }
   }
 
-  saveMetadata() {
+  this.saveMetadata = function() {
     this.saveMetadataFile(".do-not-delete-stat.js", this.metadata["global_stats"]);
     this.saveMetadataFile(".do-not-delete-storageIPC.js", this.storageInfo);
     if(!this.options.photoAcceptanceCriteria.hasExifDate) {
@@ -180,7 +179,7 @@ exports.Storage = class Storage {
   }
 
 
-  scanTagDir(folder) {
+  this.scanTagDir = function(folder) {
     this.stepLauncher.takeMutex();
     fs.readdir(folder, (err, files) => {
       if (err) {
@@ -219,7 +218,7 @@ exports.Storage = class Storage {
     });
   }
 
-  scanStorageDir(folder, needRescanStats, needRescanMd5, needRescanIPC) {
+  this.scanStorageDir = function(folder, needRescanStats, needRescanMd5, needRescanIPC) {
     this.stepLauncher.takeMutex();
     fs.readdir(folder, ((err, files) => {
       if (err) {
@@ -262,14 +261,14 @@ exports.Storage = class Storage {
     }).bind(this));
   }
 
-  scanFile(folder,
-           needRescanStats,
-           needRescanMd5,
-           needRescanIPC,
-           file,
-           fileSystemDate,
-           imageSize
-         ) {
+  this.scanFile = function(folder,
+                           needRescanStats,
+                           needRescanMd5,
+                           needRescanIPC,
+                           file,
+                           fileSystemDate,
+                           imageSize
+                         ) {
     logger.log(LOG_LEVEL.DEBUG, "Scan file %s", folder);
     this.executor.taskExecutionStart();
     this.stepLauncher.takeMutex();
@@ -300,7 +299,7 @@ exports.Storage = class Storage {
     }).bind(this));
   }
 
-  addPhotoIPC(height, width, file, size){
+  this.addPhotoIPC = function(height, width, file, size){
     logger.log(LOG_LEVEL.DEBUG, "addPhotoIPC %s", file);
     var newPhoto = new PhotoInfo_IPC(
       width,
@@ -319,11 +318,11 @@ exports.Storage = class Storage {
     this.storageInfo.chunck.push(newPhoto);
   }
 
-  addGlobalStats(photoDate, dateCanBeTrusted){
+  this.addGlobalStats = function(photoDate, dateCanBeTrusted){
     this.metadata.global_stats.increment(photoDate, dateCanBeTrusted);
   }
 
-  storeMd5(file, photoMD5){
+  this.storeMd5 = function(file, photoMD5){
     if(typeof this.metadata["weakDateMd5"][photoMD5] == 'undefined') {
       this.metadata["weakDateMd5"][photoMD5] = file;
       logger.log(LOG_LEVEL.DEBUG, "New scan result weakDateMd5[%s] = %s",

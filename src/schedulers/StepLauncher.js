@@ -7,23 +7,20 @@ var logger = new Logger(LOG_LEVEL.INFO);
 //    object: any;
 // };
 
-exports = class StepLauncher {
+exports.StepLauncher = function() {
+   this.steps= [];
+   this.numberOfSteps = 0;
+   this.mutex = 0;
 
-  constructor() {
-     this.steps= [];
-     this.numberOfSteps = 0;
-     this.mutex = 0;
-  }
-
-  addStep(step, object) {
+  this.addStep = function(step, object) {
     this.steps.push({ "methodName" : step, "object" : object});
     this.numberOfSteps++;
   }
 
-  takeMutex(){this.mutex++};
-  releaseMutex(){this.mutex--};
+  this.takeMutex = function(){this.mutex++};
+  this.releaseMutex = function(){this.mutex--};
 
-  runstep(stepNumber) {
+  this.runstep = function(stepNumber) {
     if(stepNumber >= this.numberOfSteps) {
       return;
     }
@@ -37,7 +34,7 @@ exports = class StepLauncher {
     }
   }
 
-  start() {
+  this.start = function() {
     this.runstep(0);
   }
 }

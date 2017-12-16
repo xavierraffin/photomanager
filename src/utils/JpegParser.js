@@ -2,7 +2,7 @@ const { Logger, LOG_LEVEL } = require ("../utils/Logger");
 var logger = new Logger(LOG_LEVEL.INFO);
 
 
-exports.JpegResult = class JpegResult {
+class JpegResult {
   constructor() {
     this.matchOptionsConditions = false;
     this.hasExifDate = false;
@@ -12,6 +12,7 @@ exports.JpegResult = class JpegResult {
     this.exifDate = null;
   }
 };
+exports.JpegResult = JpegResult;
 
 exports.JpegParser = class JpegParser {
 
@@ -92,11 +93,11 @@ exports.JpegParser = class JpegParser {
   extractExifInfo (buffer, i)  {
 
     var exifLabel = "";
-    for(var j = 0; j < 4 ; j++) {
+    for(let j = 0; j < 4 ; j++) {
        exifLabel += String.fromCharCode(buffer.readUInt8(i + j));
     }
 
-    if(exifLabel != "Exif" ) {
+    if(exifLabel !== "Exif" ) {
       logger.log(LOG_LEVEL.DEBUG, "This is not Exif section (%s).", this.fileName, exifLabel);
       // Happends if Adobe XMP: http://blog.bfitz.us/?p=289
       return;
@@ -106,10 +107,10 @@ exports.JpegParser = class JpegParser {
     var isBigEndian;
     var offsetStart = i;
 
-    if(endiannessMarker == 0x4D4D) { // MM = Motorola = big endian
+    if(endiannessMarker === 0x4D4D) { // MM = Motorola = big endian
       logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'File endianess is MM');
       isBigEndian = true;
-    } else if(endiannessMarker == 0x4949) { // II = Intel = little endian
+    } else if(endiannessMarker === 0x4949) { // II = Intel = little endian
       logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'File endianess is II');
       isBigEndian = false;
     } else {
@@ -129,7 +130,7 @@ exports.JpegParser = class JpegParser {
     logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'IFD contains %s fields', numberOfFields);
 
     i+=2;
-    for(var j = 0; j < numberOfFields; j ++) {
+    for(let j = 0; j < numberOfFields; j ++) {
       var tagNumber = isBigEndian ? buffer.readUInt16BE(i) : buffer.readUInt16LE(i);
       logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'tagNumber = %s', tagNumber);
 
@@ -139,8 +140,8 @@ exports.JpegParser = class JpegParser {
         var createDateDataOffset = isBigEndian ? buffer.readUInt32BE(i + 8) : buffer.readUInt32LE(i + 8);
         this.result.exifDate = "";
         i = offsetStart + createDateDataOffset;
-        for(var j = 0; j < 19 ; j++) {
-          this.result.exifDate += String.fromCharCode(buffer.readUInt8(i + j));
+        for(let h = 0; h < 19 ; h++) {
+          this.result.exifDate += String.fromCharCode(buffer.readUInt8(i + h));
         }
         logger.log(LOG_LEVEL.VERBOSE_DEBUG, 'this.result.exifDate = %s', this.result.exifDate);
         break;
