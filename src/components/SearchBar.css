@@ -1,0 +1,7 @@
+.searchbar {
+  position: fixed;
+  top: 50px;
+  width: 250px;
+  background-color: green;
+  height: 100%;
+}

@@ -1,0 +1,38 @@
+.photoGrid {
+  padding: 55px 5px 0 255px;
+}
+
+.photoCell {
+  background-color: red;
+  height: 30px;
+  width: 30px;
+  position: absolute;
+  top: 10px;
+}
+
+div.photoBox {
+  background-clip: padding-box;
+  background-image: url('https://i.pinimg.com/originals/ff/fd/84/fffd84446a56523cd383424007ddb5c8.jpg');
+  background-size: cover;
+  border: 5px solid white;
+  margin: 0;
+  padding-top: 100%;
+}
+
+@media (min-width: 768px) {
+  div.photoBox {
+    padding-top: 50%;
+  }
+}
+
+@media (min-width: 992px) {
+  div.photoBox {
+    padding-top: 25%;
+  }
+}
+
+@media (min-width: 1200px) {
+  div.photoBox {
+    padding-top: 16.66666667%;
+  }
+}
