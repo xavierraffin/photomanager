@@ -49,6 +49,11 @@ class StorageService {
     console.log("Listenner ok, ask for storage");
   }
 
+  selectImportFolder() {
+    ipcRenderer.send('set:import');
+    console.log("Ask for import folder");
+  }
+
   getPhotoDate(s) {
     return getIPCPhotoDate(s);
   }

@@ -10,14 +10,14 @@ class App extends Component {
   constructor(props) {
     super(props);
     console.log('here');
-    var storageService = new StorageService(this);
-    this.state = { storage : storageService.storage };
+    this.storageService = new StorageService(this);
+    this.state = { storage : this.storageService.storage };
   }
   render() {
     console.log('render App, %s',this.state.storage);
     return (
       <div>
-        <MainNavBar />
+        <MainNavBar importCallBack={() => this.storageService.selectImportFolder()}/>
         <SearchBar />
         <PhotoExplorer value={this.state.storage}/>
         <Footer />

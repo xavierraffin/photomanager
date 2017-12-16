@@ -9,7 +9,7 @@ class MainNavBar extends Component {
             <Navbar.Brand>
               PhotoManager
               {' '}
-              <Button bsStyle="warning" active>
+              <Button bsStyle="warning" onClick={this.props.importCallBack} active>
                 <Glyphicon glyph="plus" />
                 {' '}IMPORT
               </Button>
@@ -17,16 +17,16 @@ class MainNavBar extends Component {
             <Navbar.Toggle />
           </Navbar.Header>
           <Navbar.Collapse>
-                <Nav pullRight>
-                  <Button active>
-                    <Glyphicon glyph="zoom-out" />
-                    zoom out
-                  </Button>
-                  <Button active>
-                    <Glyphicon glyph="zoom-in" />
-                    zoom in
-                  </Button>
-                </Nav>
+            <Nav pullRight>
+              <Button active>
+                <Glyphicon glyph="zoom-out" />
+                zoom out
+              </Button>
+              <Button active>
+                <Glyphicon glyph="zoom-in" />
+                zoom in
+              </Button>
+            </Nav>
           </Navbar.Collapse>
         </Navbar>
     );

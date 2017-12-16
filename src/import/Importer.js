@@ -21,45 +21,37 @@ const path = require('path');
 const md5 = require('md5');
 const fs = require('fs');
 
-import { ImportStats } from "../model/Statistics";
-import { JpegParser, JpegResult } from "../utils/JpegParser";
-import { StepLauncher, stepFunction } from "../schedulers/StepLauncher";
-import { TaskExecutor, Task } from "../schedulers/TaskExecutor";
-import { Logger, LOG_LEVEL } from "../utils/Logger";
-import { formatDateSafe, dateFromExif } from "../utils/DateTime";
-import { isPhoto, createDirIfNotExist } from "../utils/FileSystem";
+const { ImportStats } = require( "../model/Statistics");
+const { JpegParser, JpegResult } = require( "../utils/JpegParser");
+const { StepLauncher, stepFunction } = require( "../schedulers/StepLauncher");
+const { TaskExecutor, Task } = require( "../schedulers/TaskExecutor");
+const { Logger, LOG_LEVEL } = require( "../utils/Logger");
+const { formatDateSafe, dateFromExif } = require( "../utils/DateTime");
+const { isPhoto, createDirIfNotExist } = require( "../utils/FileSystem");
 
-var logger: Logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
+var logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
 
-export class Importer {
+exports.Importer = class Importer {
 
-  private executor: TaskExecutor;
-  private stepLauncher: StepLauncher;
-  private importStats: ImportStats;
-  private importedFiles: any;
-  private options: any;
-  private storageFolder: string;
-
-  private currentImportFolder: string;
-
-  constructor(options: any) {
+  constructor(options) {
     this.stepLauncher = new StepLauncher();
     this.executor = new TaskExecutor(20, this.stepLauncher);
     this.importStats = new ImportStats();
     this.importedFiles = {};
     this.options = options;
     this.storageFolder = options.storageDir;
+    this.currentImportFolder = "";
   }
 
-  public startExecutor(){
+  this.startExecutor = function(){
     this.executor.start();
   }
 
-  public scan(){
+  this.scan = function(){
 //    this.scanDir(this.currentImportFolder);
   }
 
-  public importPhotos(importedFolder: string) {
+  this.importPhotos = function(importedFolder) {
     this.currentImportFolder = importedFolder;
 
     logger.log(LOG_LEVEL.INFO, "Start import %s into %s", importedFolder, this.storageFolder);
@@ -79,9 +71,9 @@ export class Importer {
     this.stepLauncher.start();
   }
 
+  /********** 'private' methods ************/
 
-/*
-  private isFileAlreadyImported(newFile: string) : boolean {
+  this.isFileAlreadyImported = function(newFile)  {
     if(typeof this.importedFiles[newFile] == 'undefined') {
       this.importedFiles[newFile] = true;
       return false;
@@ -91,15 +83,15 @@ export class Importer {
     }
   }
 
-  private copyFile( newFile: string,
-                    buffer: Buffer,
-                    originalFile: string,
-                    originalMd5: string,
-                    dateCanBeTrusted: boolean,
-                    photoDate: Date) : void {
+  this.copyFile = function( newFile,
+                            buffer,
+                            originalFile,
+                            originalMd5,
+                            dateCanBeTrusted,
+                            photoDate)  {
     this.stepLauncher.takeMutex();
     logger.log(LOG_LEVEL.DEBUG, "Copy %s to %s", originalFile, newFile);
-    fs.stat(newFile, (function(err: any, stat: any) {
+    fs.stat(newFile, (function(err, stat) {
        if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
          this.createMissingDirIfNeeded(photoDate);
@@ -107,7 +99,7 @@ export class Importer {
 
          if(this.options.deleteOriginal) {
            this.stepLauncher.takeMutex();
-           fs.rename(originalFile, newFile, (function(err: any) {
+           fs.rename(originalFile, newFile, (function(err) {
               if (err) {
                 logger.log(LOG_LEVEL.ERROR, "error renaming file: %s to %s: %s", originalFile, newFile, err);
               } else {
@@ -119,7 +111,7 @@ export class Importer {
            }).bind(this));
          } else { // keep original as is
            this.stepLauncher.takeMutex();
-           fs.writeFile(newFile, buffer, {"mode":"binary"}, (function(error: any){
+           fs.writeFile(newFile, buffer, {"mode":"binary"}, (function(error){
              if(!error) {
                 logger.log(LOG_LEVEL.INFO, "file %s copied from %s",newFile, originalFile);
                 this.importStats.increment(photoDate, dateCanBeTrusted);
@@ -144,10 +136,10 @@ export class Importer {
     }).bind(this));
   }
 
-  private createMissingDirIfNeeded(photoDate: Date): void {
-    var photoPath: string;
-    var year: number = photoDate.getFullYear();
-    var month: number = photoDate.getMonth() + 1;
+  this.createMissingDirIfNeeded = function(photoDate) {
+    var photoPath;
+    var year = photoDate.getFullYear();
+    var month = photoDate.getMonth() + 1;
 
     photoPath = path.join(this.storageFolder, year.toString());
     this.createIfNotExist(photoPath);
@@ -155,7 +147,7 @@ export class Importer {
     this.createIfNotExist(photoPath);
   }
 
-  private isNotAlreadyImported(md5: string, file: string, newFile: string ): boolean {
+  this.isNotAlreadyImported = function(md5, file, newFile ) {
     if(this.options.photoAcceptanceCriteria.hasExifDate) {
       return false;
     }
@@ -171,32 +163,32 @@ export class Importer {
 
   // This function produce strings that should be transformed to obtain a path
   // This to avoid conflic between UNIX and Windows separators
-  private tagPathFormatter(file : string): string {
+  this.tagPathFormatter = function(file) {
     return path.relative(this.storageFolder, file).split(path.sep).join("|");
   }
 
-  private fileNameInStorage(photoDate: Date, photoMD5: string) {
-    var photoPath: string;
-    var year: number = photoDate.getFullYear();
-    var month: number = photoDate.getMonth() + 1;
+  this.fileNameInStorage = function(photoDate, photoMD5) {
+    var photoPath;
+    var year = photoDate.getFullYear();
+    var month = photoDate.getMonth() + 1;
 
     photoPath = path.join(this.storageFolder, year.toString());
     photoPath = path.join(photoPath, month.toString());
 
-    const newFileName: string = formatDateSafe(photoDate)+ "_" + photoMD5 + ".jpg";
+    const newFileName = formatDateSafe(photoDate)+ "_" + photoMD5 + ".jpg";
     return path.join(photoPath, newFileName);
   }
 
-  private createTags(file: string, newFile: string) {
+  this.createTags = function(file, newFile) {
 
-    var relativePath: string = path.relative(this.currentImportFolder, file);
-    var pathSections: string[] = relativePath.split(path.sep);
+    var relativePath = path.relative(this.currentImportFolder, file);
+    var pathSections[] = relativePath.split(path.sep);
 
     // Loop backward on path and create tags for file from
     // each folder encountered
     var tagDirDepth = 1;
     if(pathSections.length < 2) return;
-    for(var i: number = pathSections.length - 2 ; i >= 0 ; i--) {
+    for(var i = pathSections.length - 2 ; i >= 0 ; i--) {
       if(this.options.tags.numberOfDirDepth < tagDirDepth ) break;
       tagDirDepth++;
       var folderName = pathSections[i];
@@ -204,7 +196,7 @@ export class Importer {
         logger.log(LOG_LEVEL.INFO, "New tag found '%s'", folderName);
         this.tags[folderName] = [];
       }
-      var relativeFileName: string = this.tagPathFormatter(newFile);
+      var relativeFileName = this.tagPathFormatter(newFile);
       if(this.tags[folderName].indexOf(relativeFileName) === -1) { // Do not insert twice
         this.tags[folderName].push(relativeFileName);
         logger.log(LOG_LEVEL.DEBUG, "add %s on tag %s", relativeFileName, folderName);
@@ -213,19 +205,19 @@ export class Importer {
 
   }
 
-  private moveInStorage( file: string,
-                         fileSystemDate: Date): void {
+  this.moveInStorage = function( file,
+                                 fileSystemDate) {
     this.stepLauncher.takeMutex();
     this.executor.taskExecutionStart();
-    fs.readFile(file, (function(err: any, buffer: Buffer) {
+    fs.readFile(file, (function(err, buffer) {
        if(!err){
          // Validate photo size, Exif, JPEG validity and extract Date
          var jpegParser: JpegParser = new JpegParser(this.options, file)
          var photoAttributes: JpegResult = jpegParser.parse(buffer);
 
          if(photoAttributes.matchOptionsConditions) {
-           const photoMD5: string = md5(buffer);
-           var photoDate: Date = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
+           const photoMD5 = md5(buffer);
+           var photoDate = photoAttributes.hasExifDate ? dateFromExif(photoAttributes.exifDate) : fileSystemDate;
 
            var newFile = this.fileNameInStorage(photoDate, photoMD5);
 
@@ -259,17 +251,17 @@ export class Importer {
   }
 
 
-  private printImportStats(): void {
+  this.printImportStats = function() {
     console.log("\n========= Imported results =========\n");
     this.importStats.displayStats();
     console.log("\n========== Total Storage ==========\n");
     this.metadata.global_stats.displayStats();
   }
 
-  private scanDir(folder: string): void {
+  this.scanDir = function(folder) {
     this.stepLauncher.takeMutex();
     logger.log(LOG_LEVEL.DEBUG, "Try to read directory %s", folder);
-    fs.readdir(folder, ((err: any, files: string[]) => {
+    fs.readdir(folder, ((err, files[]) => {
       if (err) {
         logger.log(LOG_LEVEL.ERROR, "Unable to read directory %s", folder);
         this.stepLauncher.releaseMutex();
@@ -281,11 +273,11 @@ export class Importer {
       }).forEach(file => {
          try{
             this.stepLauncher.takeMutex();
-            fs.lstat(file, (function (err: any, fileStat: any) {
+            fs.lstat(file, (function (err, fileStat) {
               if(!err){
                 if(fileStat.isFile()){
                   if(isPhoto(file)){
-                    var imageSize: number = fileStat["size"];
+                    var imageSize = fileStat["size"];
                     if(imageSize < Number(this.options.photoAcceptanceCriteria.fileSizeInBytes)) {
                       logger.log(LOG_LEVEL.INFO, "%s file size %s is smaller than %s : EXCLUDE PHOTO", file, fileStat["size"], this.options.photoAcceptanceCriteria.fileSizeInBytes);
                       this.stepLauncher.releaseMutex();
@@ -305,5 +297,5 @@ export class Importer {
       this.stepLauncher.releaseMutex();
     }).bind(this));
   }
-*/
+
 }

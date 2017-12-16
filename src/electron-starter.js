@@ -4,6 +4,7 @@ const url = require('url');
 const Store = require('./utils/Store');
 const { Logger, LOG_LEVEL } = require('./utils/Logger');
 const { StorageInfo_IPC, Storage } = require('./model/Storage');
+const Importer = require('./import/Importer');
 
 var logger = new Logger(LOG_LEVEL.DEBUG);
 // SET ENV
@@ -42,6 +43,7 @@ const BrowserWindow = electron.BrowserWindow;
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 const options = store.get("options");
+var importer = new Importer(options);
 let storage;
 let isStorageInfoLoaded = false;
 let isLoadedEventWaited = false;
@@ -173,14 +175,13 @@ app.on('activate', function () {
       loadStorage(options);
     })
   });
-/*  electron.ipcMain.on('set:import', function (){
+  electron.ipcMain.on('set:import', function (){
     logger.log(LOG_LEVEL.DEBUG, "Open import folder selection dialog");
-    dialog.showOpenDialog(win, {
+    dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory']
     }, function (folder){
       logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder[0]);
       mainWindow.webContents.send('import:selected', folder[0]);
-      var importer: Importer = new Importer(options);
       importer.importPhotos(folder[0]);
     })
-  });*/
+  });
