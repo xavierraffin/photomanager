@@ -1,5 +1,6 @@
 import React, { Component } from 'react';
 import { Grid, Row, Col } from 'react-bootstrap';
+const { getIPCPhotoPath } = require('../model/Photo');
 import './PhotoExplorer.css';
 
 class PhotoExplorer extends Component {
@@ -9,13 +10,13 @@ class PhotoExplorer extends Component {
     this.state = { storage : props.value };
   }
 
-  createRow(photo) {
-    console.log("createRow %s",photo.n);
+  createRow(photo, dir) {
 
+    var divStyle = { backgroundImage: 'url(' + dir + getIPCPhotoPath(photo.n) + ')'}
+      console.log("style cell= %s : %s",divStyle.backgroundImage, getIPCPhotoPath(photo.n));
     return (
-      <Col className="photoBox" xs={12} sm={6} md={3} lg={2}>
-        <div className="photoCell">
-          {photo.n}
+      <Col className="photoBox" style={divStyle} xs={12} sm={6} md={3} lg={2}>
+        <div>
         </div>
       </Col>
     )
@@ -30,7 +31,7 @@ class PhotoExplorer extends Component {
       console.log("Add cells = %s", this.props.value.chunck.length);
       for (var i = 0; i < this.props.value.chunck.length; i++) {
         console.log(" cells = %s", this.props.value.chunck[i].w);
-        cells[i] = this.createRow(this.props.value.chunck[i]);
+        cells[i] = this.createRow(this.props.value.chunck[i], this.props.value.dir);
       }
     }
     return (
