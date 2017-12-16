@@ -119,6 +119,22 @@ function createWindow() {
     electron.Menu.setApplicationMenu(mainMenu);
 }
 
+function loadStorage(options) {
+  logger.log(LOG_LEVEL.INFO, "loadStorage %s", options.storageDir);
+  storage = new Storage(options); // TODO check if we memory leak with this line
+  storage.load(storageLoaded);
+}
+
+function storageLoaded(storageInfo) {
+  isStorageInfoLoaded = true;
+  logger.log(LOG_LEVEL.INFO, "Storage is loaded, numberOfPhotos = %s", storageInfo.photosNbr);
+  if(isLoadedEventWaited) {
+    logger.log(LOG_LEVEL.DEBUG, "Storage was waited: send it");
+    win.webContents.send('storage:loaded', storage.getInfo_IPC());
+    isLoadedEventWaited = false;
+  }
+}
+
 // This method will be called when Electron has finished
 // initialization and is ready to create browser windows.
 // Some APIs can only be used after this event occurs.
@@ -132,5 +148,39 @@ app.on('activate', function () {
     }
 });
 
-// In this file you can include the rest of your app's specific main process
-// code. You can also put them in separate files and require them here.
+
+  electron.ipcMain.on('load:storage', function (){
+    logger.log(LOG_LEVEL.DEBUG, "GUI ask to load storage");
+    if(options.storageDir != "") {
+      if(isStorageInfoLoaded) {
+        logger.log(LOG_LEVEL.DEBUG, "Storage is ready: send it");
+        win.webContents.send('storage:loaded', storage.getInfo_IPC());
+      } else {
+        logger.log(LOG_LEVEL.DEBUG, "Storage is not ready: wait for it");
+        isLoadedEventWaited = true; // Then the event will be sent when ready
+      }
+    }
+  });
+  electron.ipcMain.on('set:storage', function (){
+    logger.log(LOG_LEVEL.DEBUG, "Open storage selection dialog");
+    dialog.showOpenDialog(win, {
+      properties: ['openDirectory']
+    }, function (folder){
+      logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder[0]);
+      options.storageDir = folder[0];
+      store.set('options', options);
+      win.webContents.send('storage:selected', folder[0]);
+      loadStorage(options);
+    })
+  });
+/*  electron.ipcMain.on('set:import', function (){
+    logger.log(LOG_LEVEL.DEBUG, "Open import folder selection dialog");
+    dialog.showOpenDialog(win, {
+      properties: ['openDirectory']
+    }, function (folder){
+      logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder[0]);
+      win.webContents.send('import:selected', folder[0]);
+      var importer: Importer = new Importer(options);
+      importer.importPhotos(folder[0]);
+    })
+  });*/
