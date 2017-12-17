@@ -44,6 +44,10 @@ class StorageService {
       this.isStorageSelected = true;
     }).bind(this));
 
+    ipcRenderer.on('import:progress', (function(e, percent){
+      this.app.setImportProgress(percent);
+    }).bind(this));
+
     // We send this event to ask Electron to provide storageInfo
     ipcRenderer.send('load:storage');
     console.log("Listenner ok, ask for storage");

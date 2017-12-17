@@ -12,7 +12,7 @@ class Footer extends Component {
             blabla
             </Col>
             <Col xs={6}>
-              <ProgressBar className="importProgressBar" active now={45} />
+              <ProgressBar className="importProgressBar" active now={this.props.percentage} />
             </Col>
           </Row>
         </Grid>

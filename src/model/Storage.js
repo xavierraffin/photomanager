@@ -55,7 +55,7 @@ class Metadata {
 exports.Storage = function (options) {
 
   this.stepLauncher = new StepLauncher();
-  this.executor = new TaskExecutor(20, this.stepLauncher);
+  this.executor = new TaskExecutor(20, this.stepLauncher, function (a,b,c){});
   this.storageInfo = new StorageInfo_IPC();
   this.storageInfo.dir = options.storageDir;
   this.metadata = new Metadata();

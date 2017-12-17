@@ -32,10 +32,10 @@ const { Storage } = require('../model/Storage');
 
 var logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
 
-exports.Importer = function (options) {
+exports.Importer = function (options, progressCallback) {
 
   this.stepLauncher = new StepLauncher();
-  this.executor = new TaskExecutor(20, this.stepLauncher);
+  this.executor = new TaskExecutor(20, this.stepLauncher, progressCallback);
   this.importStats = new ImportStats();
   this.importedFiles = {};
   this.options = options;
@@ -93,7 +93,7 @@ exports.Importer = function (options) {
        if ((err != null) && err.code == 'ENOENT') { //File does not exist
 
          this.createMissingDirIfNeeded(photoDate);
-         this.addGlobalStats(photoDate, dateCanBeTrusted);
+         this.storage.addGlobalStats(photoDate, dateCanBeTrusted);
 
          if(this.options.deleteOriginal) {
            this.stepLauncher.takeMutex();
@@ -109,7 +109,7 @@ exports.Importer = function (options) {
            }).bind(this));
          } else { // keep original as is
            this.stepLauncher.takeMutex();
-           fs.writeFile(newFile, buffer, {"mode":"binary"}, (function(error){
+           fs.writeFile(newFile, buffer, "binary", (function(error){
              if(!error) {
                 logger.log(LOG_LEVEL.INFO, "file %s copied from %s",newFile, originalFile);
                 this.importStats.increment(photoDate, dateCanBeTrusted);
@@ -140,9 +140,9 @@ exports.Importer = function (options) {
     var month = photoDate.getMonth() + 1;
 
     photoPath = path.join(this.storageFolder, year.toString());
-    this.createIfNotExist(photoPath);
+    createDirIfNotExist(photoPath);
     photoPath = path.join(photoPath, month.toString());
-    this.createIfNotExist(photoPath);
+    createDirIfNotExist(photoPath);
   }
 
   this.isNotAlreadyImported = function(md5, file, newFile ) {
@@ -190,13 +190,13 @@ exports.Importer = function (options) {
       if(this.options.tags.numberOfDirDepth < tagDirDepth ) break;
       tagDirDepth++;
       var folderName = pathSections[i];
-      if(typeof this.tags[folderName] == 'undefined') {
+      if(typeof this.storage.tags[folderName] == 'undefined') {
         logger.log(LOG_LEVEL.INFO, "New tag found '%s'", folderName);
-        this.tags[folderName] = [];
+        this.storage.tags[folderName] = [];
       }
       var relativeFileName = this.tagPathFormatter(newFile);
-      if(this.tags[folderName].indexOf(relativeFileName) === -1) { // Do not insert twice
-        this.tags[folderName].push(relativeFileName);
+      if(this.storage.tags[folderName].indexOf(relativeFileName) === -1) { // Do not insert twice
+        this.storage.tags[folderName].push(relativeFileName);
         logger.log(LOG_LEVEL.DEBUG, "add %s on tag %s", relativeFileName, folderName);
       }
     }

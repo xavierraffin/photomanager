@@ -14,7 +14,7 @@ class Task {
   }
 };
 
-exports.TaskExecutor = function (maxNumber, stepLauncher) {
+exports.TaskExecutor = function (maxNumber, stepLauncher, progressCallback) {
     logger.log(LOG_LEVEL.DEBUG, "Executor created, max parrallel tasks = %s", maxNumber);
     this.taskQueue = [];
     this.numberOfrunningTasks = 0;
@@ -22,6 +22,7 @@ exports.TaskExecutor = function (maxNumber, stepLauncher) {
     this.stepLauncher = stepLauncher;
     this.finishedTasks = 0;
     this.initialTaskNumber = 0;
+    this.progressCallback = progressCallback;
 
   this.queueTask = function(...args) {
     var callbackObj = args[0];
@@ -67,6 +68,9 @@ exports.TaskExecutor = function (maxNumber, stepLauncher) {
                                 this.numberOfrunningTasks);
     while(this.numberOfrunningTasks < this.maxNumberOfRunningTasks)
     {
+      this.progressCallback((this.finishedTasks/this.initialTaskNumber)*100,
+                             this.finishedTasks,
+                             this.initialTaskNumber);
       if(this.taskQueue.length == 0) {
         break;
       }

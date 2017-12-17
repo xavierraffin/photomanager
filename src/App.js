@@ -11,8 +11,12 @@ class App extends Component {
     super(props);
     console.log('here');
     this.storageService = new StorageService(this);
-    this.state = { storage : this.storageService.storage };
+    this.state = { storage : this.storageService.storage, percentage : 0 };
   }
+  setImportProgress(percent) {
+    this.state.percentage = percent;
+  }
+
   render() {
     console.log('render App, %s',this.state.storage);
     return (
@@ -20,7 +24,7 @@ class App extends Component {
         <MainNavBar importCallBack={() => this.storageService.selectImportFolder()}/>
         <SearchBar />
         <PhotoExplorer value={this.state.storage}/>
-        <Footer />
+        <Footer percentage={this.state.percentage}/>
       </div>
     );
   }

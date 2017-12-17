@@ -43,7 +43,7 @@ const BrowserWindow = electron.BrowserWindow;
 // be closed automatically when the JavaScript object is garbage collected.
 let mainWindow;
 const options = store.get("options");
-var importer = new Importer(options);
+var importer = new Importer(options, importUpdateProgress);
 let storage;
 let isStorageInfoLoaded = false;
 let isLoadedEventWaited = false;
@@ -135,6 +135,14 @@ function storageLoaded(storageInfo) {
     mainWindow.webContents.send('storage:loaded', storageInfo);
     isLoadedEventWaited = false;
   }
+}
+
+function importUpdateProgress(percent, itemsdone, totalitems) {
+  logger.log(LOG_LEVEL.DEBUG, "Electron start task completion = %s%, (%s/%s)",
+                              percent,
+                              itemsdone,
+                              totalitems);
+  mainWindow.webContents.send('import:progress', percent);
 }
 
 // This method will be called when Electron has finished
