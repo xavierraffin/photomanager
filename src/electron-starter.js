@@ -4,7 +4,7 @@ const url = require('url');
 const Store = require('./utils/Store');
 const { Logger, LOG_LEVEL } = require('./utils/Logger');
 const { StorageInfo_IPC, Storage } = require('./model/Storage');
-const Importer = require('./import/Importer');
+const { Importer } = require('./import/Importer');
 
 var logger = new Logger(LOG_LEVEL.DEBUG);
 // SET ENV
@@ -165,7 +165,7 @@ app.on('activate', function () {
   });
   electron.ipcMain.on('set:storage', function (){
     logger.log(LOG_LEVEL.DEBUG, "Open storage selection dialog");
-    dialog.showOpenDialog(win, {
+    electron.dialog.showOpenDialog(win, {
       properties: ['openDirectory']
     }, function (folder){
       logger.log(LOG_LEVEL.DEBUG, "Set storage = %s", folder[0]);
@@ -177,11 +177,11 @@ app.on('activate', function () {
   });
   electron.ipcMain.on('set:import', function (){
     logger.log(LOG_LEVEL.DEBUG, "Open import folder selection dialog");
-    dialog.showOpenDialog(mainWindow, {
+    electron.dialog.showOpenDialog(mainWindow, {
       properties: ['openDirectory']
     }, function (folder){
       logger.log(LOG_LEVEL.DEBUG, "Import directory %s", folder[0]);
       mainWindow.webContents.send('import:selected', folder[0]);
-      importer.importPhotos(folder[0]);
+      importer.importPhotos(folder[0], storage);
     })
   });

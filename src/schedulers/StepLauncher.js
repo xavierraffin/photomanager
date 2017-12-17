@@ -1,5 +1,5 @@
 const { Logger, LOG_LEVEL } = require('../utils/Logger');
-var logger = new Logger(LOG_LEVEL.INFO);
+var logger = new Logger(LOG_LEVEL.DEBUG);
 
 // Steps must be like this (Typescript syntax)
 // interface stepFunction {
@@ -14,6 +14,7 @@ exports.StepLauncher = function() {
 
   this.addStep = function(step, object) {
     this.steps.push({ "methodName" : step, "object" : object});
+    logger.log(LOG_LEVEL.DEBUG, "add method %s", step);
     this.numberOfSteps++;
   }
 
@@ -26,6 +27,7 @@ exports.StepLauncher = function() {
     }
     if(this.mutex == 0){
       logger.log(LOG_LEVEL.INFO, "============ START STEP %s ============", stepNumber);
+      logger.log(LOG_LEVEL.DEBUG, "Call method %s", this.steps[stepNumber].methodName);
       this.steps[stepNumber].object[this.steps[stepNumber].methodName]();
       this.runstep(stepNumber + 1, this);
     } else {

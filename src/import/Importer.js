@@ -28,31 +28,31 @@ const { TaskExecutor, Task } = require( "../schedulers/TaskExecutor");
 const { Logger, LOG_LEVEL } = require( "../utils/Logger");
 const { formatDateSafe, dateFromExif } = require( "../utils/DateTime");
 const { isPhoto, createDirIfNotExist } = require( "../utils/FileSystem");
+const { Storage } = require('../model/Storage');
 
 var logger = new Logger(LOG_LEVEL.VERBOSE_DEBUG);
 
-exports.Importer = class Importer {
+exports.Importer = function (options) {
 
-  constructor(options) {
-    this.stepLauncher = new StepLauncher();
-    this.executor = new TaskExecutor(20, this.stepLauncher);
-    this.importStats = new ImportStats();
-    this.importedFiles = {};
-    this.options = options;
-    this.storageFolder = options.storageDir;
-    this.currentImportFolder = "";
-  }
+  this.stepLauncher = new StepLauncher();
+  this.executor = new TaskExecutor(20, this.stepLauncher);
+  this.importStats = new ImportStats();
+  this.importedFiles = {};
+  this.options = options;
+  this.storageFolder = options.storageDir;
+  this.currentImportFolder = "";
 
   this.startExecutor = function(){
     this.executor.start();
   }
 
   this.scan = function(){
-//    this.scanDir(this.currentImportFolder);
+    this.scanDir(this.currentImportFolder);
   }
 
-  this.importPhotos = function(importedFolder) {
+  this.importPhotos = function(importedFolder, storage) {
     this.currentImportFolder = importedFolder;
+    this.storage = storage;
 
     logger.log(LOG_LEVEL.INFO, "Start import %s into %s", importedFolder, this.storageFolder);
 
@@ -61,11 +61,9 @@ exports.Importer = class Importer {
     else
       logger.log(LOG_LEVEL.INFO, "Original files will stay in place.");
 
-    this.stepLauncher.addStep("loadMetadata", this);
-    this.stepLauncher.addStep("startExecutor", this);
     this.stepLauncher.addStep("scan", this);
     this.stepLauncher.addStep("startExecutor", this);
-    this.stepLauncher.addStep("saveMetadata", this);
+    this.stepLauncher.addStep("saveMetadata", storage);
     this.stepLauncher.addStep("printImportStats", this);
 
     this.stepLauncher.start();
@@ -151,9 +149,9 @@ exports.Importer = class Importer {
     if(this.options.photoAcceptanceCriteria.hasExifDate) {
       return false;
     }
-    if(typeof this.metadata["weakDateMd5"][md5] == 'undefined') {
+    if(typeof this.storage.metadata["weakDateMd5"][md5] == 'undefined') {
       logger.log(LOG_LEVEL.DEBUG, "This is a new Md5 add weakDateMd5[%s]=%s", md5, newFile);
-      this.metadata["weakDateMd5"][md5] = newFile;
+      this.storage.metadata["weakDateMd5"][md5] = newFile;
       return true;
     } else {
       logger.log(LOG_LEVEL.WARNING, "Duplicate Md5 %s between file %s and file %s", md5, file, newFile);
@@ -182,7 +180,7 @@ exports.Importer = class Importer {
   this.createTags = function(file, newFile) {
 
     var relativePath = path.relative(this.currentImportFolder, file);
-    var pathSections[] = relativePath.split(path.sep);
+    var pathSections = relativePath.split(path.sep);
 
     // Loop backward on path and create tags for file from
     // each folder encountered
@@ -212,8 +210,8 @@ exports.Importer = class Importer {
     fs.readFile(file, (function(err, buffer) {
        if(!err){
          // Validate photo size, Exif, JPEG validity and extract Date
-         var jpegParser: JpegParser = new JpegParser(this.options, file)
-         var photoAttributes: JpegResult = jpegParser.parse(buffer);
+         var jpegParser = new JpegParser(this.options, file)
+         var photoAttributes = jpegParser.parse(buffer);
 
          if(photoAttributes.matchOptionsConditions) {
            const photoMD5 = md5(buffer);
@@ -255,13 +253,13 @@ exports.Importer = class Importer {
     console.log("\n========= Imported results =========\n");
     this.importStats.displayStats();
     console.log("\n========== Total Storage ==========\n");
-    this.metadata.global_stats.displayStats();
+    this.storage.metadata.global_stats.displayStats();
   }
 
   this.scanDir = function(folder) {
     this.stepLauncher.takeMutex();
     logger.log(LOG_LEVEL.DEBUG, "Try to read directory %s", folder);
-    fs.readdir(folder, ((err, files[]) => {
+    fs.readdir(folder, ((err, files) => {
       if (err) {
         logger.log(LOG_LEVEL.ERROR, "Unable to read directory %s", folder);
         this.stepLauncher.releaseMutex();
