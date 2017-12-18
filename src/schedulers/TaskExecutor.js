@@ -66,18 +66,18 @@ exports.TaskExecutor = function (maxNumber, stepLauncher, progressCallback) {
                                 this.finishedTasks,
                                 this.initialTaskNumber,
                                 this.numberOfrunningTasks);
+    this.progressCallback((this.finishedTasks/this.initialTaskNumber)*100,
+                           this.finishedTasks,
+                           this.initialTaskNumber);
     while(this.numberOfrunningTasks < this.maxNumberOfRunningTasks)
     {
-      this.progressCallback((this.finishedTasks/this.initialTaskNumber)*100,
-                             this.finishedTasks,
-                             this.initialTaskNumber);
       if(this.taskQueue.length == 0) {
         break;
       }
       this.popNextTask().execute();
     }
-    logger.log(LOG_LEVEL.DEBUG, "There is %s tasks running after", this.numberOfrunningTasks);
-    if(this.taskQueue.length != 0) {
+    logger.log(LOG_LEVEL.DEBUG, "There is %s tasks running, queue = %s", this.numberOfrunningTasks, this.taskQueue.length);
+    if(this.taskQueue.length != 0 || this.numberOfrunningTasks != 0) {
       setImmediate(this.eventLoopInjection.bind(this));
     } else {
       this.stepLauncher.releaseMutex();

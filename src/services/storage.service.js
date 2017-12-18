@@ -45,6 +45,7 @@ class StorageService {
     }).bind(this));
 
     ipcRenderer.on('import:progress', (function(e, percent){
+      console.log("import:progress %s", percent)
       this.app.setImportProgress(percent);
     }).bind(this));
 

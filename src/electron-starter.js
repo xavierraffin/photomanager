@@ -1,4 +1,5 @@
 const electron = require('electron');
+const { requireTaskPool } = require('electron-remote');
 const path = require('path');
 const url = require('url');
 const Store = require('./utils/Store');
@@ -137,12 +138,17 @@ function storageLoaded(storageInfo) {
   }
 }
 
+var lastPercentSent = 0;
 function importUpdateProgress(percent, itemsdone, totalitems) {
-  logger.log(LOG_LEVEL.DEBUG, "Electron start task completion = %s%, (%s/%s)",
-                              percent,
-                              itemsdone,
-                              totalitems);
-  mainWindow.webContents.send('import:progress', percent);
+  percent = Math.floor(percent);
+  if(percent != lastPercentSent) {
+    lastPercentSent = percent;
+    logger.log(LOG_LEVEL.DEBUG, "Electron start task completion = %s%, (%s/%s)",
+                                percent,
+                                itemsdone,
+                                totalitems);
+    mainWindow.webContents.send('import:progress', percent);
+  }
 }
 
 // This method will be called when Electron has finished
